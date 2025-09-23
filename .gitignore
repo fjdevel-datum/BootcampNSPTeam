@@ -1,0 +1,17 @@
+# Node / Vite
+node_modules/
+dist/
+.vite/
+*.log
+
+# Java / Maven / Quarkus
+target/
+.quarkus/
+*.iml
+*.class
+
+# IDEs / SO
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

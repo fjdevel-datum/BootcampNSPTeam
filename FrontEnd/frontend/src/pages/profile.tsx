@@ -112,7 +112,7 @@ export default function ProfilePage() {
           type="submit"
           className="mt-4 w-full rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-slate-800 focus:outline-none focus:ring-4 focus:ring-slate-900/30"
         >
-          Update
+          Actualizar
         </button>
       </form>
     </main>

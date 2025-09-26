@@ -1,21 +1,7 @@
 ﻿import { ArrowRight, Bell, Menu, Plus, Search, X } from "lucide-react";
 import { useState } from "react";
-import type { FormEvent, ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
-
-type NavItem = {
-  label: string;
-  path?: string;
-};
-
-const navigationItems: NavItem[] = [
-  { label: "Inicio", path: "/home" },
-  { label: "Eventos", path: "/home" },
-  { label: "Perfil", path: "/profile" },
-  { label: "Tarjetas" },
-  { label: "Politica de la empresa" },
-  { label: "Cerrar Sesion", path: "/" },
-];
+import type { FormEvent, ReactNode } from "react";
 
 const recentCollaborators = [
   { initials: "AL", bg: "bg-sky-500" },
@@ -25,20 +11,11 @@ const recentCollaborators = [
 const palette = ["bg-sky-900", "bg-orange-600", "bg-rose-900", "bg-emerald-700"];
 
 export default function HomePage() {
-  const navigate = useNavigate();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [eventName, setEventName] = useState("");
   const [events, setEvents] = useState<string[]>([]);
-
-  function toggleMenu() {
-    setIsMenuOpen((prev) => !prev);
-  }
-
-  function handleMenuItemClick(item: NavItem) {
-    if (item.path) navigate(item.path);
-    setIsMenuOpen(false);
-  }
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const navigate = useNavigate();
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -57,13 +34,11 @@ export default function HomePage() {
       <header className="flex items-center justify-between px-4 py-4 border-b border-slate-200 bg-white shadow-sm">
         <button
           type="button"
-          onClick={toggleMenu}
-          aria-label={isMenuOpen ? "Cerrar menu de navegacion" : "Abrir menu de navegacion"}
-          aria-expanded={isMenuOpen}
-          aria-controls="sidebar-menu"
+          onClick={() => setIsMenuOpen(true)}
+          aria-label="Abrir menu de navegacion"
           className="inline-flex items-center justify-center rounded-md border border-slate-200 p-2 text-slate-700 transition hover:bg-slate-50"
         >
-          {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          <Menu className="h-5 w-5" />
         </button>
 
         <div className="flex items-center gap-4">
@@ -107,7 +82,12 @@ export default function HomePage() {
           {hasEvents ? (
             <div className="mx-auto flex w-full max-w-lg flex-col gap-4">
               {events.map((eventLabel, index) => (
-                <EventButton key={`${eventLabel}-${index}`} label={eventLabel} colorClass={palette[index % palette.length]} />
+                <EventButton 
+                  key={`${eventLabel}-${index}`} 
+                  label={eventLabel} 
+                  colorClass={palette[index % palette.length]}
+                  onClick={() => navigate(`/event/${encodeURIComponent(eventLabel)}`)}
+                />
               ))}
             </div>
           ) : (
@@ -157,17 +137,10 @@ export default function HomePage() {
                 />
               </label>
 
-              <div className="flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="rounded-lg bg-transparent px-4 py-2 text-sm font-semibold text-gray-300 transition hover:bg-white/10 hover:text-white"
-                >
-                  Cancelar
-                </button>
+              <div className="flex justify-end">
                 <button
                   type="submit"
-                  className="inline-flex items-center rounded-lg bg-[#037694] px-5 py-2 text-sm font-semibold text-white shadow transition hover:bg-[#025f76] hover:shadow-lg"
+                  className="inline-flex items-center rounded-lg bg-[#037694] px-5 py-2 text-sm font-semibold text-white shadow transition hover:bg-[#056e8b]"
                 >
                   Agregar
                 </button>
@@ -177,53 +150,115 @@ export default function HomePage() {
         </div>
       )}
 
-      <div
-        id="sidebar-menu"
-        className={`fixed inset-0 z-40 flex transition ${isMenuOpen ? "pointer-events-auto" : "pointer-events-none"}`}
-        aria-hidden={!isMenuOpen}
-      >
-        <aside
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="menu-title"
-          className={`relative flex h-full w-72 max-w-full flex-col bg-[#5f7f86] text-white shadow-2xl transition-transform duration-300 ${isMenuOpen ? "translate-x-0" : "-translate-x-full"}`}
-        >
-          <h2 id="menu-title" className="sr-only">
-            Menu principal
-          </h2>
-          <div className="flex items-center justify-between px-6 pt-6 pb-4">
-            <button
-              type="button"
-              onClick={toggleMenu}
-              aria-label="Cerrar menu"
-              className="inline-flex items-center justify-center text-white transition hover:text-gray-200"
-            >
-              <Menu className="h-6 w-6" />
-            </button>
-          </div>
-
-          <nav className="flex-1 space-y-2 px-4">
-            {navigationItems.map((item) => (
+      {/* Sidebar Menu */}
+      {isMenuOpen && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" onClick={() => setIsMenuOpen(false)}>
+          <div 
+            className="fixed left-0 top-0 h-full w-80 bg-white shadow-xl transform transition-transform duration-300 ease-in-out"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header del sidebar */}
+            <div className="flex items-center justify-between p-6 border-b border-slate-200">
+              <h2 className="text-lg font-semibold text-slate-900">Menú</h2>
               <button
-                key={item.label}
-                type="button"
-                onClick={() => handleMenuItemClick(item)}
-                className="group flex w-full items-center justify-between rounded-lg px-4 py-3 text-left text-base font-medium tracking-wide text-white transition hover:bg-white/10"
+                onClick={() => setIsMenuOpen(false)}
+                className="p-2 rounded-lg hover:bg-slate-100 transition"
               >
-                <span className="transition group-hover:translate-x-1">{item.label}</span>
-                <ArrowRight className="h-4 w-4 text-white transition group-hover:translate-x-1" />
+                <X className="h-5 w-5 text-slate-600" />
               </button>
-            ))}
-          </nav>
-        </aside>
+            </div>
 
-        <button
-          type="button"
-          onClick={() => setIsMenuOpen(false)}
-          aria-label="Cerrar menu"
-          className={`h-full flex-1 bg-black/30 transition-opacity duration-300 ${isMenuOpen ? "opacity-100" : "opacity-0"}`}
-        />
-      </div>
+            {/* Contenido del sidebar */}
+            <div className="p-6">
+              <div className="space-y-4">
+                {/* Perfil */}
+                <button
+                  onClick={() => {
+                    navigate('/profile');
+                    setIsMenuOpen(false);
+                  }}
+                  className="w-full flex items-center gap-3 p-3 text-left rounded-lg hover:bg-slate-100 transition"
+                >
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-500 text-white text-sm font-semibold">
+                    AL
+                  </div>
+                  <div>
+                    <p className="font-medium text-slate-900">Ann Lee</p>
+                    <p className="text-sm text-slate-500">Ver perfil</p>
+                  </div>
+                </button>
+
+                {/* Separador */}
+                <hr className="border-slate-200" />
+
+                {/* Opciones del menú */}
+                <div className="space-y-2">
+                  <button
+                    onClick={() => {
+                      navigate('/home');
+                      setIsMenuOpen(false);
+                    }}
+                    className="w-full flex items-center gap-3 p-3 text-left rounded-lg hover:bg-slate-100 transition"
+                  >
+                    <div className="h-8 w-8 flex items-center justify-center rounded-lg bg-sky-100">
+                      <Search className="h-4 w-4 text-sky-600" />
+                    </div>
+                    <span className="font-medium text-slate-700">Inicio</span>
+                    <ArrowRight className="h-4 w-4 text-slate-400 ml-auto" />
+                  </button>
+
+                  <button 
+                    onClick={() => {
+                      navigate('/home');
+                      setIsMenuOpen(false);
+                    }}
+                    className="w-full flex items-center gap-3 p-3 text-left rounded-lg hover:bg-slate-100 transition"
+                  >
+                    <div className="h-8 w-8 flex items-center justify-center rounded-lg bg-emerald-100">
+                      <Bell className="h-4 w-4 text-emerald-600" />
+                    </div>
+                    <span className="font-medium text-slate-700">Eventos</span>
+                    <ArrowRight className="h-4 w-4 text-slate-400 ml-auto" />
+                  </button>
+
+                  <button className="w-full flex items-center gap-3 p-3 text-left rounded-lg hover:bg-slate-100 transition">
+                    <div className="h-8 w-8 flex items-center justify-center rounded-lg bg-orange-100">
+                      <Menu className="h-4 w-4 text-orange-600" />
+                    </div>
+                    <span className="font-medium text-slate-700">Tarjetas</span>
+                    <ArrowRight className="h-4 w-4 text-slate-400 ml-auto" />
+                  </button>
+
+                  <button className="w-full flex items-center gap-3 p-3 text-left rounded-lg hover:bg-slate-100 transition">
+                    <div className="h-8 w-8 flex items-center justify-center rounded-lg bg-indigo-100">
+                      <Bell className="h-4 w-4 text-indigo-600" />
+                    </div>
+                    <span className="font-medium text-slate-700">Política de la empresa</span>
+                    <ArrowRight className="h-4 w-4 text-slate-400 ml-auto" />
+                  </button>
+                </div>
+
+                {/* Separador */}
+                <hr className="border-slate-200" />
+
+                {/* Botón de cerrar sesión */}
+                <button
+                  onClick={() => {
+                    navigate('/');
+                    setIsMenuOpen(false);
+                  }}
+                  className="w-full flex items-center gap-3 p-3 text-left rounded-lg hover:bg-red-50 text-red-600 transition"
+                >
+                  <div className="h-8 w-8 flex items-center justify-center rounded-lg bg-red-100">
+                    <ArrowRight className="h-4 w-4 text-red-600 rotate-180" />
+                  </div>
+                  <span className="font-medium">Cerrar sesión</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
@@ -241,16 +276,15 @@ function ActionIcon({ children, label }: { children: ReactNode; label: string })
   );
 }
 
-function EventButton({ label, colorClass }: { label: string; colorClass: string }) {
+function EventButton({ label, colorClass, onClick }: { label: string; colorClass: string; onClick?: () => void }) {
   return (
     <button
       type="button"
-      className={`group flex items-center justify-between rounded-2xl px-6 py-5 text-left text-white shadow-lg transition hover:translate-y-0.5 hover:shadow-xl ${colorClass}`}
+      onClick={onClick}
+      className={`flex items-center justify-between rounded-2xl px-6 py-5 text-left text-white shadow-lg transition hover:translate-y-0.5 hover:shadow-xl ${colorClass}`}
     >
-      <span className="text-sm font-semibold uppercase tracking-wide transition group-hover:tracking-[0.35em]">
-        {label}
-      </span>
-      <ArrowRight className="h-5 w-5 transition group-hover:translate-x-1" />
+      <span className="text-sm font-semibold uppercase tracking-wide">{label}</span>
+      <ArrowRight className="h-5 w-5" />
     </button>
   );
 }

@@ -1,7 +1,8 @@
-import { createBrowserRouter } from "react-router-dom";
+﻿import { createBrowserRouter } from "react-router-dom";
 import HomePage from "../pages/Home";
 import LoginPage from "../pages/Login";
-import ProfilePage from "../pages/profile"
+import ProfilePage from "../pages/profile";
+import EventDetailPage from "../pages/EventDetail";
 
 const router = createBrowserRouter([
   {
@@ -15,6 +16,10 @@ const router = createBrowserRouter([
   {
     path: "/profile",
     element: <ProfilePage />,
+  },
+  {
+    path: "/event/:eventName",
+    element: <EventDetailPage />,
   },
 ]);
 

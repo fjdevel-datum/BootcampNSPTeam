@@ -10,35 +10,96 @@ public class Evento {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id_evento")
-    public Long idEvento;
+    private Long idEvento;
 
-    @ManyToOne
-    @JoinColumn(name = "id_empleado")
-    public Empleado empleado;
+    @Column(name = "id_empleado")
+    private Long idEmpleado;
 
     @Column(name = "nombre_evento", length = 50)
-    public String nombreEvento;
+    private String nombreEvento;
 
-    @Column(name = "fecha_inicio")
-    public LocalDate fechaInicio;
-
-    @Column(name = "fecha_regreso")
-    public LocalDate fechaRegreso;
+    @Column(name = "fecha_registro")
+    private LocalDate fechaRegistro;
 
     @Column(name = "destino", length = 100)
-    public String destino;
+    private String destino;
 
     @Column(name = "estado", length = 50)
-    public String estado;
+    private String estado;
 
-    // Constructor vacío
-    public Evento() {}
+    // Relación con Empleado (opcional, por si la necesitas después)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_empleado", insertable = false, updatable = false)
+    private Empleado empleado;
+
+    // Constructor vacío (requerido por JPA)
+    public Evento() {
+    }
 
     // Constructor con parámetros
-    public Evento(String nombreEvento, Empleado empleado, LocalDate fechaInicio, LocalDate fechaRegreso) {
+    public Evento(String nombreEvento, Long idEmpleado, String destino) {
         this.nombreEvento = nombreEvento;
+        this.idEmpleado = idEmpleado;
+        this.destino = destino;
+        this.fechaRegistro = LocalDate.now();
+        this.estado = "activo"; // Estado por defecto
+    }
+
+    // GETTERS Y SETTERS
+
+    public Long getIdEvento() {
+        return idEvento;
+    }
+
+    public void setIdEvento(Long idEvento) {
+        this.idEvento = idEvento;
+    }
+
+    public Long getIdEmpleado() {
+        return idEmpleado;
+    }
+
+    public void setIdEmpleado(Long idEmpleado) {
+        this.idEmpleado = idEmpleado;
+    }
+
+    public String getNombreEvento() {
+        return nombreEvento;
+    }
+
+    public void setNombreEvento(String nombreEvento) {
+        this.nombreEvento = nombreEvento;
+    }
+
+    public LocalDate getFechaRegistro() {
+        return fechaRegistro;
+    }
+
+    public void setFechaRegistro(LocalDate fechaRegistro) {
+        this.fechaRegistro = fechaRegistro;
+    }
+
+    public String getDestino() {
+        return destino;
+    }
+
+    public void setDestino(String destino) {
+        this.destino = destino;
+    }
+
+    public String getEstado() {
+        return estado;
+    }
+
+    public void setEstado(String estado) {
+        this.estado = estado;
+    }
+
+    public Empleado getEmpleado() {
+        return empleado;
+    }
+
+    public void setEmpleado(Empleado empleado) {
         this.empleado = empleado;
-        this.fechaInicio = fechaInicio;
-        this.fechaRegreso = fechaRegreso;
     }
 }

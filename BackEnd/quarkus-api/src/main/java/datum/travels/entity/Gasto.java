@@ -25,8 +25,11 @@ public class Gasto {
     @JoinColumn(name = "id_categoria")
     public CategoriaGasto categoria;
 
-    @Column(name = "nombre", length = 50)
-    public String nombre;
+    @Column(name = "descripcion", length = 50)
+    public String descripcion;
+
+    @Column(name = "lugar", length = 100)
+    public String lugar;
 
     @Column(name = "fecha")
     public LocalDate fecha;
@@ -40,10 +43,11 @@ public class Gasto {
     // Constructor vacío
     public Gasto() {}
 
-    // Constructor con parámetros
-    public Gasto(Evento evento, String nombre, BigDecimal monto, LocalDate fecha) {
+    // Constructor actualizado
+    public Gasto(Evento evento, String descripcion, String lugar, BigDecimal monto, LocalDate fecha) {
         this.evento = evento;
-        this.nombre = nombre;
+        this.descripcion = descripcion;
+        this.lugar = lugar;
         this.monto = monto;
         this.fecha = fecha;
     }

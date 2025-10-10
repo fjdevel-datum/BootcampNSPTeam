@@ -27,7 +27,7 @@ public class Evento {
     @Column(name = "estado", length = 50)
     private String estado;
 
-    // Relación con Empleado (opcional, por si la necesitas después)
+    // Relación con Empleado
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_empleado", insertable = false, updatable = false)
     private Empleado empleado;

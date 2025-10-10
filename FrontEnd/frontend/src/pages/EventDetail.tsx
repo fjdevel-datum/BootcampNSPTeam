@@ -2,6 +2,7 @@ import { ArrowLeft, FileText, Paperclip, Camera, X } from "lucide-react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useState, useRef } from "react";
 import { defaultEventData } from "../types/event";
+import GastoForm, { type GastoFormData } from "./GastoForm";
 
 // Interfaces para manejo de archivos e imágenes
 interface CapturedImage {
@@ -18,10 +19,10 @@ export default function EventDetailPage() {
   
   // Estados para manejo de imágenes y cámara
   const [isCameraOpen, setIsCameraOpen] = useState(false);
-  const [capturedImages, setCapturedImages] = useState<CapturedImage[]>([]);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [pendingImage, setPendingImage] = useState<CapturedImage | null>(null);
   const [isConfirmationOpen, setIsConfirmationOpen] = useState(false);
+  const [isOCRFormOpen, setIsOCRFormOpen] = useState(false);
   
   // Referencias
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -115,17 +116,16 @@ export default function EventDetailPage() {
     }
   };
 
-  // Función para eliminar imagen
-  const removeImage = (id: string) => {
-    setCapturedImages(prev => prev.filter(img => img.id !== id));
-  };
-
   // Función para confirmar la imagen pendiente
   const confirmImage = () => {
     if (pendingImage) {
-      setCapturedImages(prev => [...prev, pendingImage]);
-      setPendingImage(null);
+      // En lugar de agregar directamente, abrimos el formulario OCR
       setIsConfirmationOpen(false);
+      setIsOCRFormOpen(true);
+      
+      // Aquí se podría llamar al OCR para prellenar los datos
+      // Por ahora dejamos los campos vacíos para que el usuario los llene
+      // Cuando integres el OCR, aquí llamarás a tu función OCR y setearás los datos
     }
   };
 
@@ -133,6 +133,23 @@ export default function EventDetailPage() {
   const discardImage = () => {
     setPendingImage(null);
     setIsConfirmationOpen(false);
+  };
+
+  // Función para guardar el gasto desde el formulario OCR
+  const handleSaveGasto = (data: GastoFormData) => {
+    // Aquí podrías guardar los datos del formulario en el backend
+    console.log('Datos del gasto guardados:', data);
+    console.log('Imagen:', pendingImage);
+    
+    // Limpiar estados
+    setPendingImage(null);
+    setIsOCRFormOpen(false);
+  };
+  
+  // Función para cancelar el formulario OCR
+  const handleCancelGasto = () => {
+    setPendingImage(null);
+    setIsOCRFormOpen(false);
   };
   
   // Por ahora usamos datos mock - después se conectará al backend
@@ -262,37 +279,6 @@ export default function EventDetailPage() {
         </div>
       </div>
 
-      {/* Galería de imágenes capturadas */}
-      {capturedImages.length > 0 && (
-        <div className="px-6 pb-8">
-          <div className="bg-white rounded-2xl shadow-lg p-6 max-w-2xl mx-auto">
-            <h3 className="text-lg font-semibold text-slate-900 mb-4">
-              Fotos capturadas ({capturedImages.length})
-            </h3>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {capturedImages.map((image) => (
-                <div key={image.id} className="relative group">
-                  <img
-                    src={image.dataUrl}
-                    alt={`Captura ${image.type}`}
-                    className="w-full h-32 object-cover rounded-lg border-2 border-slate-200"
-                  />
-                  <button
-                    onClick={() => removeImage(image.id)}
-                    className="absolute top-2 right-2 w-8 h-8 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                  <div className="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
-                    {image.type === 'camera' ? '📷' : '📁'} {image.timestamp.toLocaleTimeString()}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Action Buttons - Para tomar fotos */}
       <div className="fixed bottom-6 right-6 flex flex-col gap-3">
         <button 
@@ -388,11 +374,13 @@ export default function EventDetailPage() {
 
           {/* Imagen en pantalla completa */}
           <div className="flex-1 flex items-center justify-center p-4">
-            <img
-              src={pendingImage.dataUrl}
-              alt="Vista previa"
-              className="max-w-full max-h-full object-contain rounded-lg"
-            />
+            <div className="w-full max-w-2xl h-96 flex items-center justify-center">
+              <img
+                src={pendingImage.dataUrl}
+                alt="Vista previa"
+                className="max-w-full max-h-full object-contain rounded-lg"
+              />
+            </div>
           </div>
 
           {/* Footer con botones */}
@@ -420,6 +408,17 @@ export default function EventDetailPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal de Formulario OCR - Datos del Gasto */}
+      {isOCRFormOpen && pendingImage && (
+        <GastoForm
+          imageData={pendingImage.dataUrl}
+          imageType={pendingImage.type}
+          fileName={pendingImage.fileName}
+          onSave={handleSaveGasto}
+          onCancel={handleCancelGasto}
+        />
       )}
 
       {/* Botón REGRESAR */}

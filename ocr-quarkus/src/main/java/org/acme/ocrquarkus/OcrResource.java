@@ -5,7 +5,7 @@ import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import org.jboss.resteasy.annotations.providers.multipart.MultipartForm;
 
-@Path("/")
+@Path("/api/ocr")
 public class OcrResource {
 
     @Inject

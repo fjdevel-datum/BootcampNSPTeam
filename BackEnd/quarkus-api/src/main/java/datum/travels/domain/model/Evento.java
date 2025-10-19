@@ -21,9 +21,6 @@ public class Evento {
     @Column(name = "fecha_registro")
     private LocalDate fechaRegistro;
 
-    @Column(name = "destino", length = 100)
-    private String destino;
-
     @Column(name = "estado", length = 50)
     private String estado;
 
@@ -37,10 +34,9 @@ public class Evento {
     }
 
     // Constructor con parámetros
-    public Evento(String nombreEvento, Long idEmpleado, String destino) {
+    public Evento(String nombreEvento, Long idEmpleado) {
         this.nombreEvento = nombreEvento;
         this.idEmpleado = idEmpleado;
-        this.destino = destino;
         this.fechaRegistro = LocalDate.now();
         this.estado = "activo"; // Estado por defecto
     }
@@ -77,14 +73,6 @@ public class Evento {
 
     public void setFechaRegistro(LocalDate fechaRegistro) {
         this.fechaRegistro = fechaRegistro;
-    }
-
-    public String getDestino() {
-        return destino;
-    }
-
-    public void setDestino(String destino) {
-        this.destino = destino;
     }
 
     public String getEstado() {

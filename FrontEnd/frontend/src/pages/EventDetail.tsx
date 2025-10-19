@@ -2,7 +2,9 @@ import { ArrowLeft, FileText, Paperclip, Camera, X } from "lucide-react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useState, useRef } from "react";
 import { defaultEventData } from "../types/event";
-import GastoForm, { type GastoFormData } from "./GastoForm";
+import GastoForm from "./GastoForm";
+import type { GastoFormData } from "../types/gasto";
+import { dataUrlToFile } from "../services/ocr";
 
 // Interfaces para manejo de archivos e imágenes
 interface CapturedImage {
@@ -11,6 +13,7 @@ interface CapturedImage {
   timestamp: Date;
   type: 'camera' | 'file';
   fileName?: string;
+  file?: File;
 }
 
 export default function EventDetailPage() {
@@ -56,7 +59,7 @@ export default function EventDetailPage() {
   };
 
   // Función para capturar foto
-  const capturePhoto = () => {
+  const capturePhoto = async () => {
     if (videoRef.current && canvasRef.current) {
       const video = videoRef.current;
       const canvas = canvasRef.current;
@@ -67,18 +70,25 @@ export default function EventDetailPage() {
         canvas.height = video.videoHeight;
         context.drawImage(video, 0, 0);
         
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-        const newImage: CapturedImage = {
-          id: Date.now().toString(),
-          dataUrl,
-          timestamp: new Date(),
-          type: 'camera'
-        };
-        
-        // En lugar de agregar directamente, enviamos a confirmación
-        setPendingImage(newImage);
-        closeCamera();
-        setIsConfirmationOpen(true);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+        try {
+          const file = await dataUrlToFile(dataUrl, `captura-${Date.now()}.jpg`);
+          const newImage: CapturedImage = {
+            id: Date.now().toString(),
+            dataUrl,
+            timestamp: new Date(),
+            type: 'camera',
+            fileName: file.name,
+            file
+          };
+          
+          setPendingImage(newImage);
+          closeCamera();
+          setIsConfirmationOpen(true);
+        } catch (error) {
+          console.error('Error preparando la imagen capturada:', error);
+          alert('No se pudo preparar la imagen capturada. Intenta de nuevo.');
+        }
       }
     }
   };
@@ -102,7 +112,8 @@ export default function EventDetailPage() {
           dataUrl,
           timestamp: new Date(),
           type: 'file',
-          fileName: file.name
+          fileName: file.name,
+          file
         };
         // En lugar de agregar directamente, enviamos a confirmación
         setPendingImage(newImage);
@@ -116,16 +127,31 @@ export default function EventDetailPage() {
     }
   };
 
-  // Función para confirmar la imagen pendiente
-  const confirmImage = () => {
-    if (pendingImage) {
-      // En lugar de agregar directamente, abrimos el formulario OCR
+  // Funcion para confirmar la imagen pendiente
+  const confirmImage = async () => {
+    if (!pendingImage) {
+      return;
+    }
+
+    try {
+      let file = pendingImage.file;
+      if (!file) {
+        const fallbackName = pendingImage.fileName || `captura-${pendingImage.id}.jpg`;
+        file = await dataUrlToFile(pendingImage.dataUrl, fallbackName);
+      }
+
+      const prepared: CapturedImage = {
+        ...pendingImage,
+        file,
+        fileName: pendingImage.fileName || file.name
+      };
+
+      setPendingImage(prepared);
       setIsConfirmationOpen(false);
       setIsOCRFormOpen(true);
-      
-      // Aquí se podría llamar al OCR para prellenar los datos
-      // Por ahora dejamos los campos vacíos para que el usuario los llene
-      // Cuando integres el OCR, aquí llamarás a tu función OCR y setearás los datos
+    } catch (error) {
+      console.error('Error preparando la imagen para OCR:', error);
+      alert('No se pudo preparar el archivo para el OCR. Intenta de nuevo.');
     }
   };
 
@@ -135,13 +161,10 @@ export default function EventDetailPage() {
     setIsConfirmationOpen(false);
   };
 
-  // Función para guardar el gasto desde el formulario OCR
-  const handleSaveGasto = (data: GastoFormData) => {
-    // Aquí podrías guardar los datos del formulario en el backend
-    console.log('Datos del gasto guardados:', data);
-    console.log('Imagen:', pendingImage);
-    
-    // Limpiar estados
+  // Funcion para guardar el gasto desde el formulario OCR
+  const handleSaveGasto = (result: { formData: GastoFormData; gastoId: number; llmJson: string }) => {
+    console.log('Gasto guardado:', result);
+
     setPendingImage(null);
     setIsOCRFormOpen(false);
   };
@@ -411,11 +434,12 @@ export default function EventDetailPage() {
       )}
 
       {/* Modal de Formulario OCR - Datos del Gasto */}
-      {isOCRFormOpen && pendingImage && (
+      {isOCRFormOpen && pendingImage && pendingImage.file && (
         <GastoForm
           imageData={pendingImage.dataUrl}
           imageType={pendingImage.type}
           fileName={pendingImage.fileName}
+          sourceFile={pendingImage.file}
           onSave={handleSaveGasto}
           onCancel={handleCancelGasto}
         />

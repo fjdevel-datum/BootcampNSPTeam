@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OCR Quarkus + LLM</title>
+  <style>
+    :root{--bg:#0f172a;--panel:#111827;--text:#e5e7eb;--muted:#9ca3af;--accent:#22c55e;}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu;background:var(--bg);color:var(--text)}
+    header,footer{max-width:980px;margin:24px auto;padding:0 16px}
+    main{max-width:980px;margin:0 auto;padding:0 16px 40px;display:grid;gap:24px}
+    h1{margin:0 0 8px 0}
+    form{display:grid;gap:16px;margin:16px 0}
+    .card{background:var(--panel);border-radius:14px;padding:16px;border:1px solid #1f2937}
+    .dropzone{border:2px dashed #334155;border-radius:16px;padding:28px;text-align:center;cursor:pointer;color:var(--muted);background:#0b1220}
+    .dropzone.drag{border-color:var(--accent);color:var(--text);background:#0c1a12}
+    .preview{display:flex;align-items:center;gap:16px;background:#0b1220;border-radius:12px;padding:12px;border:1px solid #1f2937}
+    .preview img{max-height:160px;border-radius:8px}
+    .filename{color:var(--muted)}
+    button{background:var(--accent);border:none;color:#04240f;padding:12px 18px;border-radius:10px;cursor:pointer;font-weight:700}
+    button:disabled{opacity:.6;cursor:not-allowed}
+    pre{background:#0b1220;border:1px solid #1f2937;padding:12px;border-radius:12px;overflow:auto;white-space:pre-wrap}
+    small.muted{color:var(--muted)}
+    details{margin-top:10px}
+    summary{cursor:pointer;color:var(--muted)}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .hidden{display:none}
+    input[type="text"], input[type="number"]{
+      background:#0b1220;border:1px solid #1f2937;border-radius:10px;padding:10px;color:var(--text)
+    }
+    label.small{font-size:.9rem;color:var(--muted)}
+  </style>
+</head>
+<body>
+  <script>
+    (function(){
+      try {
+        if (localStorage.getItem('loggedIn') !== 'true') {
+          window.location.replace('/login.html');
+        }
+      } catch(e) {
+        window.location.replace('/login.html');
+      }
+    })();
+  </script>
+  <button id="logout-btn" style="position:fixed;top:16px;right:16px;z-index:1000">Cerrar sesion</button>
+  <header>
+    <h1>OCR + LLM</h1>
+    <p class="small muted">Sube tu factura y obtén la clasificación con el LLM. Al analizar, se guardará también el archivo en Azure Storage.</p>
+  </header>
+
+  <main>
+    <!-- Subida de archivo OCR -->
+    <section class="card">
+      <h2>1) Subir archivo para OCR</h2>
+      <form id="ocr-form">
+        <label class="dropzone" id="dropzone">
+          <input id="file" name="file" type="file" accept="image/*,.png,.jpg,.jpeg,.pdf" hidden />
+          <span id="dz-text">Arrastra una imagen aquí o haz clic para seleccionar</span>
+        </label>
+
+        <div class="preview" id="preview" hidden>
+          <img id="preview-img" alt="preview"/>
+          <div class="filename" id="filename"></div>
+        </div>
+
+        <button id="btn-ocr" type="submit">Analizar OCR</button>
+        <small id="status" class="muted"></small>
+      </form>
+    </section>
+
+    <!-- Respuesta del LLM -->
+    <section class="card">
+      <h2>2) Respuesta del LLM</h2>
+      <pre id="llm-out">—</pre>
+    </section>
+
+    <!-- Ver OCR y JSON -->
+    <section class="card">
+      <h3>Detalles (opcionales)</h3>
+      <details><summary>Ver texto OCR</summary><pre id="plain-text">—</pre></details>
+      <details><summary>Ver JSON crudo</summary><pre id="json">—</pre></details>
+    </section>
+
+    <!-- Formulario con los 4 campos del LLM -->
+    <section class="card">
+      <h2>3) Gasto detectado</h2>
+      <button id="toggle-form">Mostrar formulario del gasto</button>
+      <form id="gasto-form" class="hidden">
+        <div class="row">
+          <div>
+            <label class="small">NombreEmpresa</label>
+            <input type="text" id="f-nombre" placeholder="Texaco" />
+          </div>
+          <div>
+            <label class="small">Descripcion</label>
+            <input type="text" id="f-desc" placeholder="Compra de combustible" />
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label class="small">MontoTotal</label>
+            <input type="text" id="f-monto" placeholder="25.00" />
+          </div>
+          <div>
+            <label class="small">Fecha</label>
+            <input type="text" id="f-fecha" placeholder="21/09/25" />
+          </div>
+        </div>
+        <small class="muted">* Por ahora es solo visual. Si quieres, luego lo conectamos para editar/actualizar en BD.</small>
+      </form>
+      <pre id="azure-result">—</pre>
+    </section>
+  </main>
+
+  <footer>
+    <small>OCR: <code>POST /</code> &middot; Guardado en Azure: <code>POST /api/gastos/{id}/archivo</code></small>
+  </footer>
+
+  <script>
+    // Logout handler
+    (function(){
+      const btn = document.getElementById('logout-btn');
+      if(btn){
+        btn.addEventListener('click', ()=>{
+          try { localStorage.removeItem('loggedIn'); } catch {}
+          window.location.replace('/login.html');
+        });
+      }
+    })();
+
+    // --- Referencias UI ---
+    const fileInput   = document.getElementById('file');
+    const dropzone    = document.getElementById('dropzone');
+    const dzText      = document.getElementById('dz-text');
+    const preview     = document.getElementById('preview');
+    const previewImg  = document.getElementById('preview-img');
+    const filenameEl  = document.getElementById('filename');
+    const btnOcr      = document.getElementById('btn-ocr');
+    const form        = document.getElementById('ocr-form');
+    const llmOut      = document.getElementById('llm-out');
+    const plainTextEl = document.getElementById('plain-text');
+    const jsonOut     = document.getElementById('json');
+    const statusEl    = document.getElementById('status');
+
+    const toggleBtn   = document.getElementById('toggle-form');
+    const gastoForm   = document.getElementById('gasto-form');
+    const fNombre     = document.getElementById('f-nombre');
+    const fDesc       = document.getElementById('f-desc');
+    const fMonto      = document.getElementById('f-monto');
+    const fFecha      = document.getElementById('f-fecha');
+    const azureResult = document.getElementById('azure-result');
+
+    let currentFile = null;
+    let currentLLM  = null;
+    let currentGastoId = null;
+
+    // --- Helpers UI ---
+    function setFile(file){
+      if(!file) return;
+      currentFile = file;
+      filenameEl.textContent = file.name;
+      if (file.type && file.type.startsWith('image/')) {
+        const url = URL.createObjectURL(file);
+        previewImg.src = url;
+        preview.hidden = false;
+      } else { preview.hidden = true; }
+    }
+    function pretty(s){ try { return JSON.stringify(typeof s === 'string' ? JSON.parse(s) : s, null, 2); } catch { return String(s); } }
+
+    // Drag & Drop
+    dropzone.addEventListener('click', ()=> fileInput.click());
+    fileInput.addEventListener('change', e => setFile(e.target.files[0]));
+    ['dragenter','dragover'].forEach(ev=>{
+      dropzone.addEventListener(ev, e=>{
+        e.preventDefault(); e.stopPropagation();
+        dropzone.classList.add('drag');
+        dzText.textContent='Suelta el archivo para cargar';
+      });
+    });
+    ['dragleave','drop'].forEach(ev=>{
+      dropzone.addEventListener(ev, e=>{
+        e.preventDefault(); e.stopPropagation();
+        dropzone.classList.remove('drag');
+        dzText.textContent='Arrastra una imagen aquí o haz clic para seleccionar';
+      });
+    });
+    dropzone.addEventListener('drop', e=>{
+      const f = e.dataTransfer.files?.[0];
+      if(f){ fileInput.files = e.dataTransfer.files; setFile(f); }
+    });
+
+    // Toggle del formulario de gasto
+    toggleBtn.addEventListener('click', ()=>{
+      gastoForm.classList.toggle('hidden');
+    });
+
+    // Extrae texto plano del JSON de Document Intelligence (por si tu backend lo manda así)
+    function extractPlainTextFromDI(data){
+      if (!data) return '';
+      const ar = data.analyzeResult || {};
+      if (typeof ar.content === 'string' && ar.content.trim()) return ar.content.trim();
+      const pages = Array.isArray(ar.pages) ? ar.pages : [];
+      const lines = [];
+      for (const p of pages){
+        const pls = Array.isArray(p.lines) ? p.lines : [];
+        for (const l of pls){
+          const c = (l && typeof l.content === 'string') ? l.content.trim() : '';
+          if (c) lines.push(c);
+          else if (Array.isArray(l.words)) {
+            const w = l.words.map(w => (w.content || w.text || '')).filter(Boolean).join(' ');
+            if (w) lines.push(w);
+          }
+        }
+      }
+      return lines.join('\n');
+    }
+
+    // --- Flujo principal: Analizar OCR + Guardar en Azure ---
+    form.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      if(!currentFile){ alert('Selecciona un archivo'); return; }
+
+      // Reset UI
+      btnOcr.disabled = true; btnOcr.textContent = 'Analizando…';
+      statusEl.textContent = ''; llmOut.textContent = '—';
+      plainTextEl.textContent = '—'; jsonOut.textContent = '—';
+      azureResult.textContent = '—';
+      currentGastoId = null;
+
+      try{
+        // 1) Enviar archivo al endpoint OCR (tu backend en "/")
+        const fd = new FormData();
+        fd.append('file', currentFile);
+        const ocrRes = await fetch('/', { method:'POST', body: fd });
+        const raw = await ocrRes.text();
+        jsonOut.textContent = pretty(raw);
+
+        let data; try { data = JSON.parse(raw); } catch { data = null; }
+
+        // Mostrar texto OCR si viene
+        if (data && data.extractedText) {
+          plainTextEl.textContent = data.extractedText;
+        } else if (data && data.documentIntelligenceResult) {
+          plainTextEl.textContent = extractPlainTextFromDI(data.documentIntelligenceResult);
+        } else {
+          plainTextEl.textContent = 'No se detectó texto.';
+        }
+
+        // 2) Tomar la respuesta del LLM
+        //    Suponemos que tu backend regresa un objeto en data.llmResponse
+        //    con las claves exactas que requiere tu servicio:
+        //    NombreEmpresa, Descripcion, MontoTotal, Fecha
+        let llm = null;
+        if (data && data.llmResponse) {
+          // Puede venir string o objeto
+          llm = typeof data.llmResponse === 'string'
+            ? JSON.parse(data.llmResponse)
+            : data.llmResponse;
+        }
+        currentLLM = llm;
+        llmOut.textContent = pretty(llm || 'No hay respuesta del LLM.');
+
+        // 3) Guardar gasto en BD con /api/gastos/llm
+        if (llm) {
+          // Normaliza claves por si vinieran en minúsculas
+          const payload = {
+            NombreEmpresa: llm.NombreEmpresa ?? llm.nombreempresa ?? llm.nombreEmpresa ?? 'Desconocido',
+            Descripcion:   llm.Descripcion   ?? llm.descripcion   ?? '',
+            MontoTotal:    llm.MontoTotal    ?? llm.montoTotal    ?? llm.monto ?? '0',
+            Fecha:         llm.Fecha         ?? llm.fecha         ?? ''
+          };
+
+          const saveRes = await fetch('/api/gastos/llm', {
+            method:'POST',
+            headers: { 'Content-Type':'application/json' },
+            body: JSON.stringify(payload)
+          });
+          if (!saveRes.ok) throw new Error('No se pudo guardar el gasto: ' + await saveRes.text());
+          const gasto = await saveRes.json();
+          currentGastoId = gasto.id ?? gasto.ID ?? gasto.Id ?? gasto.id_gasto;
+
+          // Prellenar el formulario de 4 campos
+          fNombre.value = payload.NombreEmpresa || '';
+          fDesc.value   = payload.Descripcion   || '';
+          fMonto.value  = payload.MontoTotal    || '';
+          fFecha.value  = payload.Fecha         || '';
+        }
+
+        // 4) Subir la misma imagen a Azure vinculada al gasto creado
+        if (currentGastoId) {
+          const up = new FormData();
+          up.append('file', currentFile);
+          up.append('filename', currentFile.name || ('archivo-' + Date.now()));
+          up.append('contentType', currentFile.type || 'application/octet-stream');
+
+          const az = await fetch(`/api/gastos/${currentGastoId}/archivo`, {
+            method:'POST',
+            body: up
+          });
+          const azText = await az.text();
+          azureResult.textContent = pretty(azText);
+
+          statusEl.textContent = az.ok
+            ? `Listo: OCR + Gasto #${currentGastoId} + archivo guardado en Azure`
+            : `OCR OK, pero error al subir a Azure: ${az.status}`;
+        } else {
+          statusEl.textContent = 'OCR listo. No se creó gasto (no hubo LLM válido).';
+        }
+
+      } catch(err){
+        console.error(err);
+        llmOut.textContent = 'Error: ' + (err.message || err);
+        statusEl.textContent = 'Falló el proceso.';
+      } finally {
+        btnOcr.disabled = false; btnOcr.textContent = 'Analizar OCR';
+      }
+    });
+  </script>
+</body>
+</html>

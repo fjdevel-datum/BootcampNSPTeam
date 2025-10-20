@@ -1,47 +1,45 @@
 package datum.travels.domain.repository;
 
 import datum.travels.domain.model.Evento;
+
 import java.util.List;
 import java.util.Optional;
 
 /**
- * Repositorio de dominio para Evento
- * Define el contrato de persistencia sin depender de detalles de infraestructura
+ * Puerto de repositorio para Evento (Clean Architecture)
+ * La implementación estará en infrastructure/persistence
  */
 public interface EventoRepository {
-    
+
     /**
-     * Busca un evento por ID
+     * Lista todos los eventos de un empleado
+     *
+     * @param idEmpleado ID del empleado
+     * @return Lista de eventos del empleado
      */
-    Optional<Evento> buscarPorId(Long id);
-    
+    List<Evento> findByIdEmpleado(Long idEmpleado);
+
     /**
-     * Lista todos los eventos
+     * Busca un evento por su ID
+     *
+     * @param idEvento ID del evento
+     * @return Optional con el evento si existe
      */
-    List<Evento> listarTodos();
-    
+    Optional<Evento> findByIdEvento(Long idEvento);
+
     /**
-     * Lista eventos activos
+     * Persiste un nuevo evento
+     *
+     * @param evento Evento a guardar
+     * @return Evento persistido con ID generado
      */
-    List<Evento> listarEventosActivos();
-    
+    Evento save(Evento evento);
+
     /**
-     * Lista eventos por empleado
+     * Actualiza un evento existente
+     *
+     * @param evento Evento con datos actualizados
+     * @return Evento actualizado
      */
-    List<Evento> listarPorEmpleado(Long idEmpleado);
-    
-    /**
-     * Guarda o actualiza un evento
-     */
-    Evento guardar(Evento evento);
-    
-    /**
-     * Elimina un evento
-     */
-    void eliminar(Long id);
-    
-    /**
-     * Verifica si existe un evento
-     */
-    boolean existe(Long id);
+    Evento update(Evento evento);
 }

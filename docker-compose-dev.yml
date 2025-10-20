@@ -1,0 +1,96 @@
+# ════════════════════════════════════════════════════════════════════════════
+# Docker Compose - Datum Travels DEV
+# ════════════════════════════════════════════════════════════════════════════
+# Servicios:
+#   - Oracle XE 21c (Puerto 1522) → Base de datos principal
+#
+# Uso:
+#   docker-compose -f docker-compose-dev.yml up -d
+#   docker-compose -f docker-compose-dev.yml down
+# ════════════════════════════════════════════════════════════════════════════
+
+services:
+  # ═══════════════════════════════════════════════════════════════════════
+  # Oracle XE Database - Base de datos principal de Datum Travels
+  # ═══════════════════════════════════════════════════════════════════════
+  datum-db:
+    image: gvenzl/oracle-xe:21-slim
+    container_name: datum-oracle-dev
+    environment:
+      # Password del usuario SYS/SYSTEM
+      ORACLE_PASSWORD: oracle2025
+      
+      # Usuario de aplicación
+      APP_USER: datum_user
+      APP_USER_PASSWORD: datum2025
+      
+      # Opcional: crear el esquema automáticamente
+      ORACLE_DATABASE: XEPDB1
+    
+    volumes:
+      # Persistencia de datos
+      - datum_db_data:/opt/oracle/oradata
+      
+      # Script de inicialización (opcional)
+      # - ./BackEnd/scripts/init-oracle.sql:/docker-entrypoint-initdb.d/init.sql
+    
+    ports:
+      # Puerto 1522 (host) → 1521 (contenedor)
+      - "1522:1521"
+    
+    networks:
+      - datum-network
+    
+    healthcheck:
+      test: ["CMD-SHELL", "healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 90s  # Oracle tarda en arrancar
+    
+    restart: unless-stopped
+
+# ═══════════════════════════════════════════════════════════════════════
+# Networks
+# ═══════════════════════════════════════════════════════════════════════
+networks:
+  datum-network:
+    driver: bridge
+    name: datum-dev-network
+
+# ═══════════════════════════════════════════════════════════════════════
+# Volumes
+# ═══════════════════════════════════════════════════════════════════════
+volumes:
+  datum_db_data:
+    name: datum-oracle-data-dev
+    driver: local
+
+# ═══════════════════════════════════════════════════════════════════════
+# NOTAS DE USO
+# ═══════════════════════════════════════════════════════════════════════
+# 
+# 1. Levantar Oracle:
+#    docker-compose -f docker-compose-dev.yml up -d
+#
+# 2. Ver logs:
+#    docker-compose -f docker-compose-dev.yml logs -f datum-db
+#
+# 3. Conectar con SQL Developer:
+#    Host: localhost
+#    Port: 1522
+#    Service: XEPDB1
+#    User: datum_user
+#    Password: datum2025
+#
+# 4. Acceso al contenedor:
+#    docker exec -it datum-oracle-dev bash
+#    sqlplus datum_user/datum2025@XEPDB1
+#
+# 5. Detener:
+#    docker-compose -f docker-compose-dev.yml down
+#
+# 6. Borrar datos y empezar limpio:
+#    docker-compose -f docker-compose-dev.yml down -v
+#
+# ═══════════════════════════════════════════════════════════════════════

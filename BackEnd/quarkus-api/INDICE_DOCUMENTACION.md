@@ -1,6 +1,35 @@
 # 📑 Índice de Documentación - Clean Architecture
 
-## 🗂️ Documentos Disponibles
+## � **DOCUMENTOS NUEVOS - Refactorización 2025** ⭐
+
+### `ARQUITECTURA_REFACTORIZADA.md` 🔥
+📋 **COMIENZA AQUÍ** - Estructura completa refactorizada
+- Arquitectura Clean ligera para primerizos
+- Árbol completo de carpetas actualizado
+- Flujo de datos explicado
+- Convenciones de nombres
+- Próximos pasos por fases
+- **Creado**: 19 Oct 2025
+
+### `DIAGRAMA_ARQUITECTURA.md` 🔥
+🎨 Diagramas visuales de la arquitectura
+- Diagrama de capas completo
+- Flujo de ejemplo: Crear Evento
+- Reglas de dependencia
+- Responsabilidades por capa
+- **Creado**: 19 Oct 2025
+
+### `REFACTORIZACION_COMPLETADA.md` 🔥
+✅ Resumen ejecutivo de la refactorización
+- 44 archivos nuevos creados
+- Lista completa de cambios
+- Plan de implementación en 7 fases
+- Checklist de verificación
+- **Creado**: 19 Oct 2025
+
+---
+
+## �🗂️ Documentos Disponibles
 
 ### 1. **Arquitectura General**
 

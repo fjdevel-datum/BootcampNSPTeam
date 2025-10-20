@@ -1,16 +1,47 @@
 package datum.travels.application.usecase.evento;
 
+import datum.travels.application.dto.evento.CrearEventoRequest;
+import datum.travels.application.dto.evento.EventoResponse;
 import datum.travels.domain.model.Evento;
+import datum.travels.domain.repository.EventoRepository;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import jakarta.transaction.Transactional;
 
 /**
- * Caso de uso: Crear un nuevo evento
+ * Caso de Uso: Crear un Nuevo Evento
+ * 
+ * Responsabilidades:
+ * 1. Validar datos del evento
+ * 2. Crear entidad Evento
+ * 3. Persistir en base de datos
+ * 4. Retornar evento creado
  */
-public interface CrearEventoUseCase {
-    
+@ApplicationScoped
+public class CrearEventoUseCase {
+
+    @Inject
+    EventoRepository eventoRepository;
+
     /**
      * Crea un nuevo evento
-     * @param evento Datos del evento
-     * @return Evento creado
+     *
+     * @param request Datos del evento a crear
+     * @return EventoResponse con el evento creado
      */
-    Evento ejecutar(Evento evento);
+    @Transactional
+    public EventoResponse execute(CrearEventoRequest request) {
+        
+        // Crear entidad Evento
+        Evento evento = new Evento(
+                request.nombreEvento(),
+                request.idEmpleado()
+        );
+
+        // Persistir
+        Evento eventoGuardado = eventoRepository.save(evento);
+
+        // Retornar DTO
+        return EventoResponse.from(eventoGuardado);
+    }
 }

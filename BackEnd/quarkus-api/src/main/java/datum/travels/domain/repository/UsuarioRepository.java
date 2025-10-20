@@ -1,27 +1,28 @@
 package datum.travels.domain.repository;
 
 import datum.travels.domain.model.Usuario;
-import java.util.List;
+
 import java.util.Optional;
 
 /**
- * Repositorio de dominio para Usuario
+ * Puerto de repositorio para Usuario (Clean Architecture)
+ * La implementación estará en infrastructure/persistence
  */
 public interface UsuarioRepository {
-    
-    Optional<Usuario> buscarPorId(Long id);
-    
-    List<Usuario> listarTodos();
-    
-    Optional<Usuario> buscarPorEmail(String email);
-    
-    Optional<Usuario> buscarPorUsername(String username);
-    
-    Usuario guardar(Usuario usuario);
-    
-    void eliminar(Long id);
-    
-    boolean existe(Long id);
-    
-    boolean existePorEmail(String email);
+
+    /**
+     * Busca un usuario por su nombre de usuario
+     *
+     * @param usuarioApp Nombre de usuario
+     * @return Optional con el usuario si existe
+     */
+    Optional<Usuario> findByUsuarioApp(String usuarioApp);
+
+    /**
+     * Busca un usuario por su ID
+     *
+     * @param idUsuario ID del usuario
+     * @return Optional con el usuario si existe
+     */
+    Optional<Usuario> findByIdUsuario(Long idUsuario);
 }

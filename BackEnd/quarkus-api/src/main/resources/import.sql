@@ -38,5 +38,9 @@ INSERT INTO Categoria_Gasto (id_categoria, nombre_categoria) VALUES (2, 'Aliment
 INSERT INTO Categoria_Gasto (id_categoria, nombre_categoria) VALUES (3, 'Hospedaje');
 INSERT INTO Categoria_Gasto (id_categoria, nombre_categoria) VALUES (4, 'Representación');
 
+-- Tarjeta corporativa de prueba
+INSERT INTO Tarjeta (id_empleado, id_pais, banco, numero_tarjeta, fecha_expiracion) 
+VALUES (1, 1, 'Banco Agrícola', '1234-5678-9012-3456', TO_DATE('2026-12-31', 'YYYY-MM-DD'));
+
 -- Evento de prueba (usar NULL para que Oracle genere el ID automáticamente)
 INSERT INTO Evento (id_empleado, nombre_evento, fecha_registro, estado) VALUES (1, 'Conferencia Tech 2025', SYSDATE, 'activo');

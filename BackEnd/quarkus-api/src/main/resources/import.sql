@@ -38,5 +38,5 @@ INSERT INTO Categoria_Gasto (id_categoria, nombre_categoria) VALUES (2, 'Aliment
 INSERT INTO Categoria_Gasto (id_categoria, nombre_categoria) VALUES (3, 'Hospedaje');
 INSERT INTO Categoria_Gasto (id_categoria, nombre_categoria) VALUES (4, 'Representación');
 
--- Evento de prueba
-INSERT INTO Evento (id_evento, id_empleado, nombre_evento, fecha_registro, estado) VALUES (1, 1, 'Conferencia Tech 2025', SYSDATE, 'activo');
+-- Evento de prueba (usar NULL para que Oracle genere el ID automáticamente)
+INSERT INTO Evento (id_empleado, nombre_evento, fecha_registro, estado) VALUES (1, 'Conferencia Tech 2025', SYSDATE, 'activo');

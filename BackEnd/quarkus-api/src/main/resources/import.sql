@@ -25,10 +25,12 @@ INSERT INTO Empleado (id_empleado, nombre, apellido, correo, id_cargo, id_depart
 INSERT INTO Empleado (id_empleado, nombre, apellido, correo, id_cargo, id_departamento, id_empresa, telefono) VALUES (2, 'Ana', 'Rodríguez', 'arodriguez@datumtravels.com', 2, 2, 1, '2222-2222');
 INSERT INTO Empleado (id_empleado, nombre, apellido, correo, id_cargo, id_departamento, id_empresa, telefono) VALUES (3, 'Luis', 'González', 'lgonzalez@datumtravels.com', 3, 3, 1, '2222-3333');
 
--- Usuario (LO MÁS IMPORTANTE)
-INSERT INTO Usuario (id_usuario, usuario_app, contraseña, id_empleado) VALUES (1, 'cmartinez', 'carlos123', 1);
-INSERT INTO Usuario (id_usuario, usuario_app, contraseña, id_empleado) VALUES (2, 'arodriguez', 'ana123', 2);
-INSERT INTO Usuario (id_usuario, usuario_app, contraseña, id_empleado) VALUES (3, 'lgonzalez', 'luis123', 3);
+-- Usuario (contraseñas hasheadas con SHA-256)
+-- NOTA: Todas las contraseñas son "admin123" para pruebas
+-- Hash generado: JAvlGPq9JyTdtvBO6x2llnRI1+gxwIyPqCKAn3THIKk=
+INSERT INTO Usuario (id_usuario, usuario_app, contraseña, id_empleado) VALUES (1, 'cmartinez', 'JAvlGPq9JyTdtvBO6x2llnRI1+gxwIyPqCKAn3THIKk=', 1);
+INSERT INTO Usuario (id_usuario, usuario_app, contraseña, id_empleado) VALUES (2, 'arodriguez', 'JAvlGPq9JyTdtvBO6x2llnRI1+gxwIyPqCKAn3THIKk=', 2);
+INSERT INTO Usuario (id_usuario, usuario_app, contraseña, id_empleado) VALUES (3, 'lgonzalez', 'JAvlGPq9JyTdtvBO6x2llnRI1+gxwIyPqCKAn3THIKk=', 3);
 
 -- Categoria_Gasto
 INSERT INTO Categoria_Gasto (id_categoria, nombre_categoria) VALUES (1, 'Transporte');

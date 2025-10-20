@@ -1,45 +1,18 @@
-version: '3.8'
-
-# ════════════════════════════════════════════════════════════
-# DOCKER COMPOSE - DATUM TRAVELS (FULL DOCKERIZED)
-# Stack completo de desarrollo con DOS bases de datos Oracle:
-# - Oracle XE #1 (keycloak-db) → Para persistencia de Keycloak
-# - Oracle XE #2 (app-db) → Para la aplicación principal
-# - Keycloak → Servidor de autenticación
-# 
-# CONFIGURACIÓN DE TU INGENIERO: Adaptada para el proyecto
-# ════════════════════════════════════════════════════════════
-#
-# Comandos útiles:
-#   docker-compose up -d                    # Iniciar todos los servicios
-#   docker-compose down                     # Detener servicios (mantiene datos)
-#   docker-compose down -v                  # DESTRUIR TODO (datos incluidos)
-#   docker-compose logs -f keycloak         # Ver logs de Keycloak
-#   docker-compose logs -f app-db           # Ver logs de Oracle App
-#   docker-compose ps                       # Ver estado
-#   docker-compose restart keycloak         # Reiniciar Keycloak
-#
-# ════════════════════════════════════════════════════════════
-
 services:
-  
-  # ──────────────────────────────────────────────────────────
-  # ORACLE XE - Base de datos para KEYCLOAK
-  # ──────────────────────────────────────────────────────────
+  # Oracle XE database for Keycloak persistence - DEV
   keycloak-db:
     image: gvenzl/oracle-xe:21-slim
-    container_name: datum-keycloak-db
-    restart: unless-stopped
+    container_name: datum-keycloak-db-dev
     environment:
       ORACLE_PASSWORD: ${KC_DB_PASSWORD:-oracle_dev_pass}
       APP_USER: ${KC_DB_USER:-keycloak}
       APP_USER_PASSWORD: ${KC_DB_PASSWORD:-keycloak_dev_pass}
     volumes:
-      - keycloak_db_data:/opt/oracle/oradata
+      - keycloak_db_data_dev:/opt/oracle/oradata
     ports:
-      - "${KC_DB_PORT:-1525}:1521"         # Puerto 1525 para no colisionar
+      - "${KC_DB_PORT:-1525}:1521"
     networks:
-      - datum-network
+      - datum-network-dev
     healthcheck:
       test: ["CMD-SHELL", "healthcheck.sh"]
       interval: 30s
@@ -47,65 +20,36 @@ services:
       retries: 10
       start_period: 60s
 
-  # ──────────────────────────────────────────────────────────
-  # ORACLE XE - Base de datos de la APLICACIÓN
-  # ──────────────────────────────────────────────────────────
-  app-db:
-    image: gvenzl/oracle-xe:21-slim
-    container_name: datum-app-db
-    restart: unless-stopped
-    environment:
-      ORACLE_PASSWORD: ${APP_DB_PASSWORD:-oracle_app_pass}
-      APP_USER: ${APP_DB_USER:-datum_user}
-      APP_USER_PASSWORD: ${APP_DB_PASSWORD:-datum2025}
-    volumes:
-      - app_db_data:/opt/oracle/oradata
-      - ./BackEnd/scripts:/docker-entrypoint-initdb.d/startup
-    ports:
-      - "${APP_DB_PORT:-1521}:1521"        # Puerto 1521 (tu app se conecta aquí)
-    networks:
-      - datum-network
-    healthcheck:
-      test: ["CMD-SHELL", "healthcheck.sh"]
-      interval: 30s
-      timeout: 10s
-      retries: 10
-      start_period: 60s
-
-  # ──────────────────────────────────────────────────────────
-  # KEYCLOAK - Servidor de autenticación
-  # ──────────────────────────────────────────────────────────
+  # Keycloak Identity Provider - DEV
   keycloak:
     image: quay.io/keycloak/keycloak:23.0
-    container_name: datum-keycloak
-    restart: unless-stopped
+    container_name: datum-keycloak-dev
     command: start-dev
     environment:
-      # Configuración de Base de Datos Oracle (keycloak-db)
+      # Database configuration
       KC_DB: oracle
       KC_DB_URL: jdbc:oracle:thin:@//keycloak-db:1521/XEPDB1
       KC_DB_USERNAME: ${KC_DB_USER:-keycloak}
       KC_DB_PASSWORD: ${KC_DB_PASSWORD:-keycloak_dev_pass}
 
-      # Credenciales de administrador
+      # Keycloak admin credentials
       KEYCLOAK_ADMIN: ${KC_ADMIN_USER:-admin}
       KEYCLOAK_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD:-admin123}
 
-      # Configuración de desarrollo
+      # Development settings
       KC_HOSTNAME_STRICT: false
       KC_HOSTNAME_STRICT_HTTPS: false
       KC_HTTP_ENABLED: true
       KC_HEALTH_ENABLED: true
       KC_METRICS_ENABLED: true
       KC_LOG_LEVEL: ${KC_LOG_LEVEL:-info}
-      
     ports:
-      - "${KC_PORT:-8180}:8080"            # Puerto 8180 para no colisionar con Quarkus
+      - "${KC_PORT:-8089}:8080"
     depends_on:
       keycloak-db:
         condition: service_healthy
     networks:
-      - datum-network
+      - datum-network-dev
     healthcheck:
       test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080"]
       interval: 10s
@@ -113,81 +57,57 @@ services:
       retries: 10
       start_period: 40s
 
-# ════════════════════════════════════════════════════════════
-# VOLUMES - Persistencia de datos (¡NO borrar sin querer!)
-# ════════════════════════════════════════════════════════════
-volumes:
-  keycloak_db_data:
-    driver: local
-    name: datum-keycloak-db-vol
-  app_db_data:
-    driver: local
-    name: datum-app-db-vol
+  # Quarkus Auth Microservice - DEV
+  datum-auth-service:
+    build:
+      context: ..
+      dockerfile: datum_AUTH/Dockerfile.dev
+    container_name: datum-auth-microservice-dev
+    environment:
+      # Environment
+      QUARKUS_PROFILE: dev
+      APP_ENV: development
 
-# ════════════════════════════════════════════════════════════
-# NETWORKS - Red para comunicación entre contenedores
-# ════════════════════════════════════════════════════════════
+      # HTTP Configuration
+      QUARKUS_HTTP_PORT: ${APP_PORT:-8085}
+
+      # OIDC configuration pointing to Keycloak
+      QUARKUS_OIDC_AUTH_SERVER_URL: http://keycloak:8080/realms/${KC_REALM:-datum-realm}
+      QUARKUS_OIDC_CLIENT_ID: ${KC_CLIENT_ID:-datum-quarkus-client}
+      QUARKUS_OIDC_CREDENTIALS_SECRET: ${KC_CLIENT_SECRET:-EhoEbzs4rlBXtnBH3QfCfbGq3ouPtO7L}
+      QUARKUS_OIDC_TLS_VERIFICATION: none
+      QUARKUS_OIDC_TOKEN_ISSUER: any
+
+      # Rest Client Configuration
+      QUARKUS_REST_CLIENT_KEYCLOAK_API_URL: http://keycloak:8080
+
+      # CORS configuration for frontend
+      QUARKUS_HTTP_CORS: true
+      QUARKUS_HTTP_CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:4200}
+
+      # Logging
+      QUARKUS_LOG_LEVEL: ${APP_LOG_LEVEL:-DEBUG}
+    ports:
+      - "${APP_PORT:-8085}:${APP_PORT:-8085}"
+    depends_on:
+      keycloak:
+        condition: service_healthy
+    networks:
+      - datum-network-dev
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:${APP_PORT:-8085}/q/health/ready || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    profiles:
+      - with-app
+
 networks:
-  datum-network:
+  datum-network-dev:
     driver: bridge
     name: datum-dev-network
 
-# ════════════════════════════════════════════════════════════
-# NOTAS IMPORTANTES:
-# ════════════════════════════════════════════════════════════
-#
-# 1. ORACLE XE #1 - KEYCLOAK-DB (Puerto 1525):
-#    - Solo para uso interno de Keycloak
-#    - Usuario: keycloak / keycloak_dev_pass
-#    - Connection: jdbc:oracle:thin:@localhost:1525/XEPDB1
-#    - Consumo: ~1.5GB RAM
-#
-# 2. ORACLE XE #2 - APP-DB (Puerto 1521):
-#    - Base de datos de TU APLICACIÓN (Eventos, Gastos, Empleados, etc.)
-#    - Usuario: datum_user / datum2025
-#    - Connection: jdbc:oracle:thin:@localhost:1521/XEPDB1
-#    - Script de inicialización: ./BackEnd/scripts/init-oracle.sql
-#    - Consumo: ~1.5GB RAM
-#
-# 3. KEYCLOAK (Puerto 8180):
-#    - Admin Console: http://localhost:8180
-#    - Usuario admin: admin / admin123
-#    - Consumo: ~500-700MB RAM
-#
-# 4. CAMBIO EN application.properties DE QUARKUS:
-#    Tu Quarkus ahora se conecta al Oracle dockerizado:
-#    
-#    quarkus.datasource.jdbc.url=jdbc:oracle:thin:@localhost:1521/XEPDB1
-#    quarkus.datasource.username=datum_user
-#    quarkus.datasource.password=datum2025
-#
-# 5. PRIMER INICIO (demora ~2-3 minutos):
-#    docker-compose up -d
-#    docker-compose logs -f app-db          # Ver inicio de Oracle App
-#    docker-compose logs -f keycloak-db     # Ver inicio de Oracle Keycloak
-#    docker-compose logs -f keycloak        # Ver inicio de Keycloak
-#
-# 6. RECURSOS TOTALES:
-#    - Oracle Keycloak: ~1.5GB RAM
-#    - Oracle App: ~1.5GB RAM
-#    - Keycloak: ~700MB RAM
-#    - TOTAL: ~3.7GB RAM (asegúrate de tener al menos 8GB)
-#
-# 7. VENTAJAS vs POSTGRES + ORACLE LOCAL:
-#    ✅ Todo dockerizado, portátil entre máquinas
-#    ✅ Keycloak con Oracle (mejor para producción)
-#    ✅ Un solo "docker-compose up" inicia todo
-#    ✅ Fácil resetear datos con "docker-compose down -v"
-#    ❌ Consume más RAM (~3.7GB vs ~800MB con Postgres)
-#
-# 8. VARIABLES DE ENTORNO (.env):
-#    Puedes crear un archivo .env en la raíz del proyecto:
-#    
-#    KC_DB_PORT=1525
-#    KC_DB_PASSWORD=keycloak_dev_pass
-#    APP_DB_PORT=1521
-#    APP_DB_PASSWORD=datum2025
-#    KC_PORT=8180
-#    KC_ADMIN_PASSWORD=admin123
-#
-# ════════════════════════════════════════════════════════════
+volumes:
+  keycloak_db_data_dev:
+    name: datum-keycloak-db-dev

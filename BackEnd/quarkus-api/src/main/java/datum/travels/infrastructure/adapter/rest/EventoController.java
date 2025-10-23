@@ -8,6 +8,7 @@ import datum.travels.application.usecase.evento.CrearEventoUseCase;
 import datum.travels.application.usecase.evento.ListarEventosUseCase;
 import datum.travels.application.usecase.evento.ObtenerDetalleEventoUseCase;
 import datum.travels.domain.exception.ResourceNotFoundException;
+import datum.travels.shared.constant.AuthSimulation;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import jakarta.ws.rs.*;
@@ -52,6 +53,9 @@ public class EventoController {
     /**
      * GET /api/eventos?idEmpleado={id}
      * Lista todos los eventos de un empleado
+     * 
+     * ⚠️ SIMULACIÓN: Si no se proporciona idEmpleado, usa AuthSimulation.ID_EMPLEADO_SIMULADO
+     * Cambiar el valor en: shared/constant/AuthSimulation.java
      */
     @GET
     @Operation(summary = "Listar eventos", description = "Obtiene todos los eventos de un empleado")
@@ -62,13 +66,10 @@ public class EventoController {
     public Response listarEventos(
             @QueryParam("idEmpleado") Long idEmpleado
     ) {
-        if (idEmpleado == null) {
-            return Response.status(Response.Status.BAD_REQUEST)
-                    .entity(new ErrorResponse("El parámetro idEmpleado es obligatorio"))
-                    .build();
-        }
+        // Si no se proporciona idEmpleado, usa el valor simulado
+        Long empleadoId = (idEmpleado != null) ? idEmpleado : AuthSimulation.ID_EMPLEADO_SIMULADO;
 
-        List<EventoResponse> eventos = listarEventosUseCase.execute(idEmpleado);
+        List<EventoResponse> eventos = listarEventosUseCase.execute(empleadoId);
         return Response.ok(eventos).build();
     }
 

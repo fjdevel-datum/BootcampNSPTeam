@@ -1,6 +1,6 @@
 package datum.travels.application.dto.evento;
 
-import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 
 /**
  * DTO para respuesta de evento
@@ -9,7 +9,7 @@ import java.time.LocalDate;
  * @param idEvento - ID del evento
  * @param idEmpleado - ID del empleado dueño del evento
  * @param nombreEvento - Nombre del evento
- * @param fechaRegistro - Fecha de creación
+ * @param fechaRegistro - Fecha de creación en formato dd/MM/yyyy (ej: 21/01/2025)
  * @param estado - Estado actual (activo, completado, cancelado)
  * @param nombreEmpleado - Nombre completo del empleado (para mostrar)
  */
@@ -17,10 +17,12 @@ public record EventoResponse(
     Long idEvento,
     Long idEmpleado,
     String nombreEvento,
-    LocalDate fechaRegistro,
+    String fechaRegistro,
     String estado,
     String nombreEmpleado
 ) {
+    
+    private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     
     /**
      * Factory method para crear desde entidad Evento
@@ -30,7 +32,7 @@ public record EventoResponse(
             evento.getIdEvento(),
             evento.getIdEmpleado(),
             evento.getNombreEvento(),
-            evento.getFechaRegistro(),
+            evento.getFechaRegistro() != null ? evento.getFechaRegistro().format(FORMATTER) : null,
             evento.getEstado(),
             evento.getEmpleado() != null ? evento.getEmpleado().getNombreCompleto() : "Sin asignar"
         );

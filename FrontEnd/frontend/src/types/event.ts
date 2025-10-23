@@ -1,3 +1,24 @@
+// ═══════════════════════════════════════════════════════════════════════
+// Tipos para integración con Backend
+// ═══════════════════════════════════════════════════════════════════════
+
+/**
+ * Respuesta del backend para un evento
+ * Corresponde a EventoResponse.java
+ */
+export interface EventoBackend {
+  idEvento: number;
+  idEmpleado: number;
+  nombreEvento: string;
+  fechaRegistro: string; // Formato: dd/MM/yyyy (ej: 21/01/2025)
+  estado: string; // "activo" | "completado" | "cancelado"
+  nombreEmpleado: string;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Tipos para UI (legacy - mantener compatibilidad)
+// ═══════════════════════════════════════════════════════════════════════
+
 // Interfaces básicas para manejo de eventos (sin backend)
 export interface EventData {
   name: string;

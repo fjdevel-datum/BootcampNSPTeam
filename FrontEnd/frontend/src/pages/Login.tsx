@@ -87,13 +87,23 @@ export default function LoginPage() {
         </form>
 
         {/* Link de recuperación */}
-        <div className="mt-5 text-center">
+        <div className="mt-5 text-center space-y-2">
           <a
             href="#" // Reemplaza con la URL de recuperación de Keycloak
-            className="text-sm text-slate-400 underline-offset-4 hover:text-white hover:underline"
+            className="block text-sm text-slate-400 underline-offset-4 hover:text-white hover:underline"
           >
             ¿Olvidó su contraseña?
           </a>
+          
+          {/* Acceso rápido para admin (temporal para testing) */}
+          <div className="pt-3 border-t border-slate-700">
+            <a
+              href="/admin"
+              className="block text-xs text-orange-400 underline-offset-4 hover:text-orange-300 hover:underline"
+            >
+              🔒 Acceso Administrador
+            </a>
+          </div>
         </div>
       </div>
     </main>

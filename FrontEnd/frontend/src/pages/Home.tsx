@@ -1,12 +1,7 @@
-﻿import { ArrowRight, Bell, Menu, Plus, Search, X } from "lucide-react";
+﻿import { ArrowRight, Bell, CreditCard, Menu, Plus, Search, X } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { FormEvent, ReactNode } from "react";
-
-const recentCollaborators = [
-  { initials: "AL", bg: "bg-sky-500" },
-  { initials: "JD", bg: "bg-emerald-500" },
-];
 
 const palette = ["bg-sky-900", "bg-orange-600", "bg-rose-900", "bg-emerald-700"];
 
@@ -15,6 +10,7 @@ export default function HomePage() {
   const [eventName, setEventName] = useState("");
   const [events, setEvents] = useState<string[]>([]);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const navigate = useNavigate();
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -49,21 +45,53 @@ export default function HomePage() {
             <Bell className="h-5 w-5" />
           </ActionIcon>
 
-          <div className="flex items-center gap-3">
-            <div className="flex -space-x-3">
-              {recentCollaborators.map((collaborator) => (
-                <span
-                  key={collaborator.initials}
-                  className={`flex h-8 w-8 items-center justify-center rounded-full border-2 border-white text-xs font-semibold text-white ${collaborator.bg}`}
-                >
-                  {collaborator.initials}
-                </span>
-              ))}
-            </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-semibold text-slate-900">Ann Lee</span>
-              <span className="text-xs text-slate-500">Coordinadora</span>
-            </div>
+          {/* Dropdown de perfil */}
+          <div className="relative">
+            <button
+              onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-500 text-white text-sm font-semibold hover:bg-sky-600 transition"
+            >
+              AL
+            </button>
+
+            {/* Dropdown Menu */}
+            {isProfileDropdownOpen && (
+              <>
+                {/* Overlay para cerrar al hacer click afuera */}
+                <div 
+                  className="fixed inset-0 z-10" 
+                  onClick={() => setIsProfileDropdownOpen(false)}
+                />
+                
+                {/* Menu dropdown */}
+                <div className="absolute right-0 top-12 z-20 w-48 bg-white rounded-lg shadow-lg border border-slate-200 py-2">
+                  <button
+                    onClick={() => {
+                      navigate('/profile');
+                      setIsProfileDropdownOpen(false);
+                    }}
+                    className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-100 transition flex items-center gap-2"
+                  >
+                    <div className="h-8 w-8 flex items-center justify-center rounded-full bg-sky-500 text-white text-xs font-semibold">
+                      AL
+                    </div>
+                    <span className="font-medium">Ver Perfil</span>
+                  </button>
+                  
+                  <hr className="my-2 border-slate-200" />
+                  
+                  <button
+                    onClick={() => {
+                      navigate('/');
+                      setIsProfileDropdownOpen(false);
+                    }}
+                    className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 transition font-medium"
+                  >
+                    Cerrar Sesión
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </header>
@@ -171,26 +199,6 @@ export default function HomePage() {
             {/* Contenido del sidebar */}
             <div className="p-6">
               <div className="space-y-4">
-                {/* Perfil */}
-                <button
-                  onClick={() => {
-                    navigate('/profile');
-                    setIsMenuOpen(false);
-                  }}
-                  className="w-full flex items-center gap-3 p-3 text-left rounded-lg hover:bg-slate-100 transition"
-                >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-500 text-white text-sm font-semibold">
-                    AL
-                  </div>
-                  <div>
-                    <p className="font-medium text-slate-900">Ann Lee</p>
-                    <p className="text-sm text-slate-500">Ver perfil</p>
-                  </div>
-                </button>
-
-                {/* Separador */}
-                <hr className="border-slate-200" />
-
                 {/* Opciones del menú */}
                 <div className="space-y-2">
                   <button
@@ -207,23 +215,34 @@ export default function HomePage() {
                     <ArrowRight className="h-4 w-4 text-slate-400 ml-auto" />
                   </button>
 
-                  <button 
+                  <button
                     onClick={() => {
-                      navigate('/home');
+                      navigate('/profile');
                       setIsMenuOpen(false);
                     }}
                     className="w-full flex items-center gap-3 p-3 text-left rounded-lg hover:bg-slate-100 transition"
                   >
-                    <div className="h-8 w-8 flex items-center justify-center rounded-lg bg-emerald-100">
-                      <Bell className="h-4 w-4 text-emerald-600" />
+                    <div className="h-8 w-8 flex items-center justify-center rounded-lg bg-purple-100">
+                      <div className="flex h-full w-full items-center justify-center rounded-lg bg-sky-500 text-white text-xs font-semibold">
+                        AL
+                      </div>
                     </div>
-                    <span className="font-medium text-slate-700">Eventos</span>
+                    <div className="flex flex-col">
+                      <span className="font-medium text-slate-700">Ann Lee</span>
+                      <span className="text-xs text-slate-500">Ver perfil</span>
+                    </div>
                     <ArrowRight className="h-4 w-4 text-slate-400 ml-auto" />
                   </button>
 
-                  <button className="w-full flex items-center gap-3 p-3 text-left rounded-lg hover:bg-slate-100 transition">
+                  <button 
+                    onClick={() => {
+                      navigate('/tarjetas');
+                      setIsMenuOpen(false);
+                    }}
+                    className="w-full flex items-center gap-3 p-3 text-left rounded-lg hover:bg-slate-100 transition"
+                  >
                     <div className="h-8 w-8 flex items-center justify-center rounded-lg bg-orange-100">
-                      <Menu className="h-4 w-4 text-orange-600" />
+                      <CreditCard className="h-4 w-4 text-orange-600" />
                     </div>
                     <span className="font-medium text-slate-700">Tarjetas</span>
                     <ArrowRight className="h-4 w-4 text-slate-400 ml-auto" />

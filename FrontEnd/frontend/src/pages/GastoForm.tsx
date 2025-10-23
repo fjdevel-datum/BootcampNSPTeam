@@ -1,5 +1,6 @@
 import { Loader2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import type { GastoFormData } from "../types/gasto";
 import {
   analyzeExpenseImage,
@@ -11,12 +12,19 @@ import {
 } from "../services/ocr";
 
 interface GastoFormProps {
+  imageData?: string;
+  imageType?: "camera" | "file";
+  fileName?: string;
+  sourceFile?: File;
+  onSave?: (result: { formData: GastoFormData; gastoId: number; llmJson: string }) => void;
+  onCancel?: () => void;
+}
+
+interface LocationState {
   imageData: string;
   imageType: "camera" | "file";
   fileName?: string;
   sourceFile: File;
-  onSave: (result: { formData: GastoFormData; gastoId: number; llmJson: string }) => void;
-  onCancel: () => void;
 }
 
 const DEFAULT_FORM: GastoFormData = {
@@ -26,19 +34,33 @@ const DEFAULT_FORM: GastoFormData = {
   fecha: "",
 };
 
-const FILE_LABEL: Record<GastoFormProps["imageType"], string> = {
+const FILE_LABEL: Record<"camera" | "file", string> = {
   camera: "Foto capturada",
   file: "Archivo seleccionado",
 };
 
 export default function GastoForm({
-  imageData,
-  imageType,
-  fileName,
-  sourceFile,
-  onSave,
-  onCancel,
+  imageData: propImageData,
+  imageType: propImageType,
+  fileName: propFileName,
+  sourceFile: propSourceFile,
+  onSave: propOnSave,
+  onCancel: propOnCancel,
 }: GastoFormProps) {
+  const navigate = useNavigate();
+  const { eventName } = useParams<{ eventName: string }>();
+  const location = useLocation();
+  
+  // Determinar si estamos en modo ruta (nueva funcionalidad) o modo modal (legacy)
+  const locationState = location.state as LocationState | null;
+  const isRouteMode = Boolean(locationState);
+  
+  // Usar datos de location.state si estamos en modo ruta, sino usar props
+  const imageData = isRouteMode ? locationState!.imageData : propImageData!;
+  const imageType = isRouteMode ? locationState!.imageType : propImageType!;
+  const fileName = isRouteMode ? locationState?.fileName : propFileName;
+  const sourceFile = isRouteMode ? locationState!.sourceFile : propSourceFile!;
+  
   const [formData, setFormData] = useState<GastoFormData>(DEFAULT_FORM);
   const [ocrDetails, setOcrDetails] = useState<OcrAnalysisResponse | null>(null);
   const [llmJson, setLlmJson] = useState<string>("");
@@ -46,6 +68,25 @@ export default function GastoForm({
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
+
+  // Handler para cancelar
+  const handleCancel = () => {
+    if (isRouteMode) {
+      navigate(`/event/${eventName}`);
+    } else if (propOnCancel) {
+      propOnCancel();
+    }
+  };
+
+  // Handler para guardar exitoso
+  const handleSaveSuccess = (result: { formData: GastoFormData; gastoId: number; llmJson: string }) => {
+    if (isRouteMode) {
+      // Regresar a la vista del evento
+      navigate(`/event/${eventName}`, { state: { gastoCreado: true } });
+    } else if (propOnSave) {
+      propOnSave(result);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -147,7 +188,7 @@ export default function GastoForm({
       const updatedJson = JSON.stringify(payload);
       setLlmJson(updatedJson);
 
-      onSave({ formData: sanitized, gastoId, llmJson: updatedJson });
+      handleSaveSuccess({ formData: sanitized, gastoId, llmJson: updatedJson });
     } catch (err) {
       const message =
         err instanceof Error
@@ -161,7 +202,7 @@ export default function GastoForm({
 
   const handleDelete = () => {
     if (confirm("Estas seguro de eliminar esta imagen?")) {
-      onCancel();
+      handleCancel();
     }
   };
 
@@ -170,7 +211,7 @@ export default function GastoForm({
       <header className="bg-slate-900 text-white p-4 sticky top-0 z-10">
         <div className="flex items-center justify-between max-w-4xl mx-auto">
           <h2 className="text-xl font-bold">Gasto detectado</h2>
-          <button onClick={onCancel} className="p-2 hover:bg-white/10 rounded-full transition">
+          <button onClick={handleCancel} className="p-2 hover:bg-white/10 rounded-full transition">
             <X className="h-6 w-6" />
           </button>
         </div>
@@ -305,7 +346,7 @@ export default function GastoForm({
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-4 shadow-lg">
         <div className="max-w-4xl mx-auto flex gap-4">
           <button
-            onClick={onCancel}
+            onClick={handleCancel}
             className="flex-1 py-3 px-6 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg font-medium transition"
             disabled={isSaving}
           >

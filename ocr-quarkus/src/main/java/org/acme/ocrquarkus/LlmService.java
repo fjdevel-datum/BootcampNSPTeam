@@ -52,7 +52,7 @@ public class LlmService {
           + "- La respuesta DEBE ser un JSON válido\n"
           + "- Los nombres de los campos deben ser exactamente los mostrados arriba\n"
           + "- Ejemplos de formatos aceptados:\n"
-          + "  MontoTotal: debe ser número sin símbolo de moneda (ej: '25.00' o '1215.00' o '17.70') no omitas los ceros de la derecha\n"
+          + "  MontoTotal: debe ser número sin símbolo de moneda (ej: '25.00' o '1215.00' o '17.70') no omitas los ceros de la derecha, usa el total como referencia\n"
           + "  Fecha: puede ser en formato '21/09/25' cada vez que apararezca (03:33PM) o algo similar toma como el año actual\n"
           + "  NombreEmpresa: solo el nombre principal, sin sucursales\n"
           + "  Descripcion: breve descripción de la transacción\n\n"

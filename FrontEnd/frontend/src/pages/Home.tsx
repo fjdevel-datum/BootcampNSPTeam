@@ -1,29 +1,62 @@
 ﻿import { ArrowRight, Bell, CreditCard, Menu, Plus, Search, X } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import type { FormEvent, ReactNode } from "react";
+import { eventosService } from "../services/eventos";
+import type { EventoBackend } from "../types/event";
 
 const palette = ["bg-sky-900", "bg-orange-600", "bg-rose-900", "bg-emerald-700"];
 
 export default function HomePage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [eventName, setEventName] = useState("");
-  const [events, setEvents] = useState<string[]>([]);
+  const [eventos, setEventos] = useState<EventoBackend[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const navigate = useNavigate();
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  // Cargar eventos al montar el componente
+  useEffect(() => {
+    cargarEventos();
+  }, []);
+
+  async function cargarEventos() {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const eventosObtenidos = await eventosService.listarEventos();
+      setEventos(eventosObtenidos);
+    } catch (err) {
+      console.error("Error al cargar eventos:", err);
+      setError("No se pudieron cargar los eventos. Verifica que el backend esté activo.");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const trimmed = eventName.trim();
     if (!trimmed) return;
 
-    setEvents((prev) => [...prev, trimmed.toUpperCase()]);
-    setEventName("");
-    setIsModalOpen(false);
+    try {
+      // Crear evento en el backend
+      await eventosService.crearEvento(trimmed.toUpperCase());
+      
+      // Recargar la lista de eventos
+      await cargarEventos();
+      
+      setEventName("");
+      setIsModalOpen(false);
+    } catch (err) {
+      console.error("Error al crear evento:", err);
+      alert("No se pudo crear el evento. Intenta de nuevo.");
+    }
   }
 
-  const hasEvents = events.length > 0;
+  const hasEvents = eventos.length > 0;
 
   return (
     <main className="min-h-screen bg-slate-100 text-slate-900">
@@ -107,14 +140,31 @@ export default function HomePage() {
       <div className="relative flex-1">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.08),transparent_55%)]" aria-hidden />
         <div className="px-6 pb-28 space-y-4">
-          {hasEvents ? (
+          {isLoading ? (
+            <div className="rounded-2xl border border-slate-300 bg-white/70 px-6 py-8 text-center text-slate-500">
+              <p className="text-sm">Cargando eventos...</p>
+            </div>
+          ) : error ? (
+            <div className="rounded-2xl border border-red-300 bg-red-50 px-6 py-8 text-center text-red-600">
+              <p className="text-sm font-semibold">Error</p>
+              <p className="text-xs mt-2">{error}</p>
+              <button 
+                onClick={cargarEventos}
+                className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 transition"
+              >
+                Reintentar
+              </button>
+            </div>
+          ) : hasEvents ? (
             <div className="mx-auto flex w-full max-w-lg flex-col gap-4">
-              {events.map((eventLabel, index) => (
+              {eventos.map((evento, index) => (
                 <EventButton 
-                  key={`${eventLabel}-${index}`} 
-                  label={eventLabel} 
+                  key={evento.idEvento} 
+                  label={evento.nombreEvento} 
                   colorClass={palette[index % palette.length]}
-                  onClick={() => navigate(`/event/${encodeURIComponent(eventLabel)}`)}
+                  onClick={() => navigate(`/event/${encodeURIComponent(evento.nombreEvento)}`)}
+                  fechaRegistro={evento.fechaRegistro}
+                  estado={evento.estado}
                 />
               ))}
             </div>
@@ -295,15 +345,35 @@ function ActionIcon({ children, label }: { children: ReactNode; label: string })
   );
 }
 
-function EventButton({ label, colorClass, onClick }: { label: string; colorClass: string; onClick?: () => void }) {
+interface EventButtonProps {
+  label: string;
+  colorClass: string;
+  onClick?: () => void;
+  fechaRegistro?: string;
+  estado?: string;
+}
+
+function EventButton({ label, colorClass, onClick, fechaRegistro, estado }: EventButtonProps) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`flex items-center justify-between rounded-2xl px-6 py-5 text-left text-white shadow-lg transition hover:translate-y-0.5 hover:shadow-xl ${colorClass}`}
+      className={`flex flex-col rounded-2xl px-6 py-5 text-left text-white shadow-lg transition hover:translate-y-0.5 hover:shadow-xl ${colorClass}`}
     >
-      <span className="text-sm font-semibold uppercase tracking-wide">{label}</span>
-      <ArrowRight className="h-5 w-5" />
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-semibold uppercase tracking-wide">{label}</span>
+        <ArrowRight className="h-5 w-5" />
+      </div>
+      {fechaRegistro && (
+        <div className="mt-2 flex items-center gap-4 text-xs text-white/80">
+          <span>Fecha: {fechaRegistro}</span>
+          {estado && (
+            <span className="px-2 py-1 bg-white/20 rounded-full capitalize">
+              {estado}
+            </span>
+          )}
+        </div>
+      )}
     </button>
   );
 }

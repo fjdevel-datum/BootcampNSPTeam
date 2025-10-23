@@ -2,19 +2,7 @@ import { ArrowLeft, FileText, Paperclip, Camera, X } from "lucide-react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useState, useRef } from "react";
 import { defaultEventData } from "../types/event";
-import GastoForm from "./GastoForm";
-import type { GastoFormData } from "../types/gasto";
 import { dataUrlToFile } from "../services/ocr";
-
-// Interfaces para manejo de archivos e imágenes
-interface CapturedImage {
-  id: string;
-  dataUrl: string;
-  timestamp: Date;
-  type: 'camera' | 'file';
-  fileName?: string;
-  file?: File;
-}
 
 export default function EventDetailPage() {
   const { eventName } = useParams<{ eventName: string }>();
@@ -23,9 +11,6 @@ export default function EventDetailPage() {
   // Estados para manejo de imágenes y cámara
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
-  const [pendingImage, setPendingImage] = useState<CapturedImage | null>(null);
-  const [isConfirmationOpen, setIsConfirmationOpen] = useState(false);
-  const [isOCRFormOpen, setIsOCRFormOpen] = useState(false);
   
   // Referencias
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -73,18 +58,18 @@ export default function EventDetailPage() {
         const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
         try {
           const file = await dataUrlToFile(dataUrl, `captura-${Date.now()}.jpg`);
-          const newImage: CapturedImage = {
-            id: Date.now().toString(),
-            dataUrl,
-            timestamp: new Date(),
-            type: 'camera',
-            fileName: file.name,
-            file
-          };
           
-          setPendingImage(newImage);
           closeCamera();
-          setIsConfirmationOpen(true);
+          
+          // Navegar directamente a la ruta de gasto
+          navigate(`/event/${eventName}/gasto`, {
+            state: {
+              imageData: dataUrl,
+              imageType: 'camera',
+              fileName: file.name,
+              sourceFile: file
+            }
+          });
         } catch (error) {
           console.error('Error preparando la imagen capturada:', error);
           alert('No se pudo preparar la imagen capturada. Intenta de nuevo.');
@@ -107,17 +92,15 @@ export default function EventDetailPage() {
       const reader = new FileReader();
       reader.onload = (e) => {
         const dataUrl = e.target?.result as string;
-        const newImage: CapturedImage = {
-          id: Date.now().toString(),
-          dataUrl,
-          timestamp: new Date(),
-          type: 'file',
-          fileName: file.name,
-          file
-        };
-        // En lugar de agregar directamente, enviamos a confirmación
-        setPendingImage(newImage);
-        setIsConfirmationOpen(true);
+        // Navegar directamente a la ruta de gasto con los datos de la imagen
+        navigate(`/event/${eventName}/gasto`, {
+          state: {
+            imageData: dataUrl,
+            imageType: 'file',
+            fileName: file.name,
+            sourceFile: file
+          }
+        });
       };
       reader.readAsDataURL(file);
     }
@@ -125,54 +108,6 @@ export default function EventDetailPage() {
     if (event.target) {
       event.target.value = '';
     }
-  };
-
-  // Funcion para confirmar la imagen pendiente
-  const confirmImage = async () => {
-    if (!pendingImage) {
-      return;
-    }
-
-    try {
-      let file = pendingImage.file;
-      if (!file) {
-        const fallbackName = pendingImage.fileName || `captura-${pendingImage.id}.jpg`;
-        file = await dataUrlToFile(pendingImage.dataUrl, fallbackName);
-      }
-
-      const prepared: CapturedImage = {
-        ...pendingImage,
-        file,
-        fileName: pendingImage.fileName || file.name
-      };
-
-      setPendingImage(prepared);
-      setIsConfirmationOpen(false);
-      setIsOCRFormOpen(true);
-    } catch (error) {
-      console.error('Error preparando la imagen para OCR:', error);
-      alert('No se pudo preparar el archivo para el OCR. Intenta de nuevo.');
-    }
-  };
-
-  // Función para descartar la imagen pendiente
-  const discardImage = () => {
-    setPendingImage(null);
-    setIsConfirmationOpen(false);
-  };
-
-  // Funcion para guardar el gasto desde el formulario OCR
-  const handleSaveGasto = (result: { formData: GastoFormData; gastoId: number; llmJson: string }) => {
-    console.log('Gasto guardado:', result);
-
-    setPendingImage(null);
-    setIsOCRFormOpen(false);
-  };
-  
-  // Función para cancelar el formulario OCR
-  const handleCancelGasto = () => {
-    setPendingImage(null);
-    setIsOCRFormOpen(false);
   };
   
   // Por ahora usamos datos mock - después se conectará al backend
@@ -378,71 +313,6 @@ export default function EventDetailPage() {
           {/* Canvas oculto para captura */}
           <canvas ref={canvasRef} className="hidden" />
         </div>
-      )}
-
-      {/* Modal de Confirmación de Imagen - Estilo WhatsApp */}
-      {isConfirmationOpen && pendingImage && (
-        <div className="fixed inset-0 z-50 bg-black flex flex-col">
-          {/* Header */}
-          <div className="flex items-center justify-between p-4 text-white">
-            <button
-              onClick={discardImage}
-              className="p-2 hover:bg-white/10 rounded-full transition"
-            >
-              <X className="h-6 w-6" />
-            </button>
-            <h3 className="text-lg font-medium">Vista previa</h3>
-            <div className="w-10"></div> {/* Espaciador */}
-          </div>
-
-          {/* Imagen en pantalla completa */}
-          <div className="flex-1 flex items-center justify-center p-4">
-            <div className="w-full max-w-2xl h-96 flex items-center justify-center">
-              <img
-                src={pendingImage.dataUrl}
-                alt="Vista previa"
-                className="max-w-full max-h-full object-contain rounded-lg"
-              />
-            </div>
-          </div>
-
-          {/* Footer con botones */}
-          <div className="p-6 bg-black/50">
-            <div className="flex gap-4 justify-center max-w-md mx-auto">
-              <button
-                onClick={discardImage}
-                className="flex-1 py-3 px-6 bg-red-500/80 hover:bg-red-500 text-white rounded-full font-medium transition flex items-center justify-center gap-2"
-              >
-                <X className="h-5 w-5" />
-                Descartar
-              </button>
-              <button
-                onClick={confirmImage}
-                className="flex-1 py-3 px-6 bg-teal-600 hover:bg-teal-700 text-white rounded-full font-medium transition flex items-center justify-center gap-2"
-              >
-                ✓ Confirmar
-              </button>
-            </div>
-            
-            {/* Información de la imagen */}
-            <div className="text-center text-white/70 text-sm mt-4">
-              {pendingImage.type === 'camera' ? '📷 Foto capturada' : '📁 Archivo seleccionado'}
-              {pendingImage.fileName && ` • ${pendingImage.fileName}`}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal de Formulario OCR - Datos del Gasto */}
-      {isOCRFormOpen && pendingImage && pendingImage.file && (
-        <GastoForm
-          imageData={pendingImage.dataUrl}
-          imageType={pendingImage.type}
-          fileName={pendingImage.fileName}
-          sourceFile={pendingImage.file}
-          onSave={handleSaveGasto}
-          onCancel={handleCancelGasto}
-        />
       )}
 
       {/* Botón REGRESAR */}

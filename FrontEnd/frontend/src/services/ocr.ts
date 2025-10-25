@@ -171,6 +171,7 @@ export function buildPayloadFromFormData(formData: GastoFormData) {
     Descripcion: formData.descripcion,
     MontoTotal: formData.montoTotal,
     Fecha: formData.fecha,
+    IdCategoria: formData.idCategoria ? Number.parseInt(formData.idCategoria, 10) : undefined,
   };
 }
 
@@ -198,6 +199,7 @@ function mapToFormData(parsed: Record<string, unknown> | null): GastoFormData {
       descripcion: "",
       montoTotal: "",
       fecha: "",
+      idCategoria: "",
     };
   }
 
@@ -211,6 +213,7 @@ function mapToFormData(parsed: Record<string, unknown> | null): GastoFormData {
     descripcion: pickString(parsed, ["Descripcion", "Descripci\u00f3n", "descripcion"]),
     montoTotal: normalizeAmount(pick(parsed, ["MontoTotal", "Monto Total", "montoTotal"])),
     fecha: normalizeDate(pick(parsed, ["Fecha", "fecha"])),
+    idCategoria: "",
   };
 }
 

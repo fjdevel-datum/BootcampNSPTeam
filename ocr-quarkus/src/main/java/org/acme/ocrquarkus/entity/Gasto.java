@@ -24,6 +24,9 @@ public class Gasto {
     @Column(name = "monto")
     public Double monto;
 
+    @Column(name = "id_categoria")
+    public Long idCategoria;
+
     // Nombre del blob dentro del contenedor (clave real en Azure)
     @Column(name = "blob_name", length = 300)
     private String blobName;

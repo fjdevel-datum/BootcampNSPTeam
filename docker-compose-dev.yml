@@ -75,16 +75,14 @@ services:
     
     command:
       - start-dev
-      # Descomentar si quieres importar realm automáticamente
-      # - --import-realm
+      - --import-realm  # ✅ Importa realm automáticamente al iniciar
     
     volumes:
       # Persistencia de datos de Keycloak
       - datum_keycloak_data:/opt/keycloak/data
       
-      # Importar configuración de realm (opcional)
-      # Descomentar cuando tengas el archivo de configuración
-      # - ./BackEnd/keycloak/realm-config:/opt/keycloak/data/import
+      # ✅ Importar configuración de realm automáticamente
+      - ./BackEnd/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
     
     ports:
       # Puerto 8180 (host) → 8080 (contenedor)

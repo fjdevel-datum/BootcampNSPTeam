@@ -66,80 +66,49 @@ docker ps --filter "name=keycloak"
 
 ---
 
-## 🔐 Paso 3: Configurar Keycloak (MANUAL - Solo la primera vez)
+## 🔐 Paso 3: Configurar Keycloak (AUTOMÁTICO ✨)
 
-### 3.1. Acceder a Keycloak Admin Console
+### ✅ Importación Automática del Realm
 
-1. Abre tu navegador: **http://localhost:8180/admin**
-2. Login con:
-   - **Usuario:** `admin`
-   - **Contraseña:** `admin`
+El archivo `BackEnd/keycloak/realm-export.json` contiene **toda la configuración** y se importa automáticamente:
 
-### 3.2. Crear Realm "datum-travels"
+- ✅ Realm `datum-travels` completo
+- ✅ Client `datum-travels-backend` con el secret correcto
+- ✅ Roles: `Empleado`, `contador`, `gerente`, `admin`
+- ✅ Usuario `carlos.test` (sin contraseña por seguridad)
 
-1. En la esquina superior izquierda, donde dice **"master"**
-2. Click en el dropdown → **"Create Realm"**
-3. Nombre del Realm: **`datum-travels`**
-4. Click **"Create"**
+### 3.1. Configurar Contraseña (OPCIÓN 1 - Script Automático) ⭐ RECOMENDADO
 
-### 3.3. Crear Client "datum-travels-backend"
+**Ejecuta el script PowerShell:**
 
-1. En el menú lateral: **Clients** → **"Create client"**
-2. Configuración:
-   - **Client ID:** `datum-travels-backend`
-   - **Client Type:** `OpenID Connect`
-   - Click **"Next"**
-3. Capability config:
-   - ✅ **Client authentication:** ON
-   - ✅ **Authorization:** OFF
-   - ✅ **Standard flow:** ON
-   - ✅ **Direct access grants:** ON
-   - Click **"Next"**
-4. Login settings:
-   - **Valid redirect URIs:** `http://localhost:8080/*`
-   - **Web origins:** `http://localhost:8080`
-   - Click **"Save"**
+```powershell
+# Desde la raíz del proyecto
+.\setup-keycloak-password.ps1
+```
 
-### 3.4. Obtener Client Secret
+Este script automáticamente:
+1. Verifica que Keycloak esté corriendo
+2. Busca el usuario `carlos.test`
+3. Establece la contraseña `test123`
+4. Verifica que el login funcione
 
-1. Ve a la pestaña **"Credentials"**
-2. Copia el **Client Secret**
-3. ⚠️ **IMPORTANTE:** El secret en el código es: `tpQkr9c6f1nD8ksGoM51hexkfbnr9UvT`
-   - Si el tuyo es diferente, actualiza `application.properties` línea 105 y 160
+**Tiempo: ~10 segundos**
 
-### 3.5. Crear Rol "Empleado"
+### 3.2. Configurar Contraseña (OPCIÓN 2 - Manual)
 
-1. En el menú lateral: **Realm roles** → **"Create role"**
-2. **Role name:** `Empleado`
-3. Click **"Save"**
+Si prefieres hacerlo manualmente:
 
-### 3.6. Crear Usuario "carlos.test"
+1. Abre: **http://localhost:8180/admin**
+2. Login: `admin` / `admin123`
+3. Cambiar a Realm: **datum-travels** (dropdown arriba izquierda)
+4. Ir a: **Users** → Buscar `carlos.test`
+5. Pestaña **Credentials** → **Set password**
+   - Password: `test123`
+   - Password confirmation: `test123`
+   - **Temporary:** OFF ⚠️
+   - Click **Save**
 
-1. En el menú lateral: **Users** → **"Create new user"**
-2. Configuración:
-   - **Username:** `carlos.test`
-   - **Email:** `carlos@datum.com`
-   - **First name:** `Carlos`
-   - **Last name:** `Test`
-   - ✅ **Email verified:** ON
-   - ✅ **Enabled:** ON
-   - Click **"Create"**
-
-### 3.7. Establecer Contraseña
-
-1. Click en el usuario recién creado
-2. Pestaña **"Credentials"** → **"Set password"**
-3. Password: `test123`
-4. Password confirmation: `test123`
-5. ⚠️ **Temporary:** **OFF** (muy importante)
-6. Click **"Save"** → Confirmar
-
-### 3.8. Asignar Rol al Usuario
-
-1. Pestaña **"Role mapping"**
-2. Click **"Assign role"**
-3. Buscar y seleccionar: **`Empleado`**
-4. Click **"Assign"**
+**Tiempo: ~2 minutos**
 
 ---
 
@@ -275,6 +244,7 @@ Invoke-RestMethod -Uri "http://localhost:8081/api/auth/login" -Method POST -Body
 
 ## 📚 Documentación Adicional
 
+- **Importación Realm:** `BackEnd/keycloak/README_REALM_IMPORT.md` ⭐ NUEVO
 - **Integración Keycloak:** `BackEnd/keycloak/INTEGRACION_KEYCLOAK_QUARKUS.md`
 - **Guía de Roles:** `BackEnd/keycloak/GUIA_ROLES.md`
 - **Troubleshooting:** `BackEnd/keycloak/RESUMEN_FINAL_INTEGRACION.md`

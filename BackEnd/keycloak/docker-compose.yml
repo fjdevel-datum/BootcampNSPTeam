@@ -1,0 +1,82 @@
+# ════════════════════════════════════════════════════════════════════════════
+# Docker Compose - Keycloak Standalone
+# ════════════════════════════════════════════════════════════════════════════
+# Este archivo permite levantar SOLO Keycloak de forma independiente
+# Para usarlo: docker-compose -f BackEnd/keycloak/docker-compose.yml up -d
+# ════════════════════════════════════════════════════════════════════════════
+
+services:
+  # ═══════════════════════════════════════════════════════════════════════
+  # Keycloak - Servidor de autenticación y autorización
+  # ═══════════════════════════════════════════════════════════════════════
+  keycloak:
+    image: quay.io/keycloak/keycloak:23.0.7
+    container_name: datum-keycloak-standalone
+    environment:
+      # Configuración de administrador
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin123
+      
+      # Base de datos (H2 en memoria para desarrollo)
+      KC_DB: dev-file
+      
+      # Configuración HTTP (sin HTTPS en desarrollo)
+      KC_HTTP_ENABLED: "true"
+      KC_HOSTNAME_STRICT: "false"
+      KC_HOSTNAME_STRICT_HTTPS: "false"
+      
+      # Health & Metrics
+      KC_HEALTH_ENABLED: "true"
+      KC_METRICS_ENABLED: "true"
+    
+    command: start-dev
+    
+    ports:
+      # Puerto 8180 (host) → 8080 (contenedor)
+      - "8180:8080"
+    
+    volumes:
+      # Persistencia de datos
+      - keycloak_data:/opt/keycloak/data
+      
+      # Importar realm (opcional)
+      # - ./realm-config:/opt/keycloak/data/import
+    
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8080;echo -e 'GET /health/ready HTTP/1.1\r\nhost: localhost\r\nConnection: close\r\n\r\n' >&3;if [ $? -eq 0 ]; then echo 'Healthcheck Successful';exit 0;else echo 'Healthcheck Failed';exit 1;fi;"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    
+    restart: unless-stopped
+
+# ═══════════════════════════════════════════════════════════════════════
+# Volumes
+# ═══════════════════════════════════════════════════════════════════════
+volumes:
+  keycloak_data:
+    driver: local
+
+# ═══════════════════════════════════════════════════════════════════════
+# NOTAS DE USO
+# ═══════════════════════════════════════════════════════════════════════
+# 
+# 1. Levantar Keycloak standalone:
+#    docker-compose -f BackEnd/keycloak/docker-compose.yml up -d
+#
+# 2. Ver logs:
+#    docker logs -f datum-keycloak-standalone
+#
+# 3. Acceder a la consola:
+#    URL: http://localhost:8180
+#    Usuario: admin
+#    Password: admin123
+#
+# 4. Detener:
+#    docker-compose -f BackEnd/keycloak/docker-compose.yml down
+#
+# 5. Borrar datos:
+#    docker-compose -f BackEnd/keycloak/docker-compose.yml down -v
+#
+# ═══════════════════════════════════════════════════════════════════════

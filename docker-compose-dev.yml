@@ -50,6 +50,62 @@ services:
     
     restart: unless-stopped
 
+  # ═══════════════════════════════════════════════════════════════════════
+  # Keycloak - Servidor de autenticación y autorización
+  # ═══════════════════════════════════════════════════════════════════════
+  datum-keycloak:
+    image: quay.io/keycloak/keycloak:23.0.7
+    container_name: datum-keycloak-dev
+    environment:
+      # Configuración de administrador
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin123
+      
+      # Base de datos (H2 en memoria para desarrollo)
+      KC_DB: dev-file
+      
+      # Configuración HTTP (sin HTTPS en desarrollo)
+      KC_HTTP_ENABLED: "true"
+      KC_HOSTNAME_STRICT: "false"
+      KC_HOSTNAME_STRICT_HTTPS: "false"
+      
+      # Health & Metrics
+      KC_HEALTH_ENABLED: "true"
+      KC_METRICS_ENABLED: "true"
+    
+    command:
+      - start-dev
+      # Descomentar si quieres importar realm automáticamente
+      # - --import-realm
+    
+    volumes:
+      # Persistencia de datos de Keycloak
+      - datum_keycloak_data:/opt/keycloak/data
+      
+      # Importar configuración de realm (opcional)
+      # Descomentar cuando tengas el archivo de configuración
+      # - ./BackEnd/keycloak/realm-config:/opt/keycloak/data/import
+    
+    ports:
+      # Puerto 8180 (host) → 8080 (contenedor)
+      - "8180:8080"
+    
+    networks:
+      - datum-network
+    
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8080;echo -e 'GET /health/ready HTTP/1.1\r\nhost: localhost\r\nConnection: close\r\n\r\n' >&3;if [ $? -eq 0 ]; then echo 'Healthcheck Successful';exit 0;else echo 'Healthcheck Failed';exit 1;fi;"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s  # Keycloak tarda ~1min en arrancar
+    
+    depends_on:
+      datum-db:
+        condition: service_healthy
+    
+    restart: unless-stopped
+
 # ═══════════════════════════════════════════════════════════════════════
 # Networks
 # ═══════════════════════════════════════════════════════════════════════
@@ -64,6 +120,10 @@ networks:
 volumes:
   datum_db_data:
     name: datum-oracle-data-dev
+    driver: local
+  
+  datum_keycloak_data:
+    name: datum-keycloak-data-dev
     driver: local
 
 # ═══════════════════════════════════════════════════════════════════════

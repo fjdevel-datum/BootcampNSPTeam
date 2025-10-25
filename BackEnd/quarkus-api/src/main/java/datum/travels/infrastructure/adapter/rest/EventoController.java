@@ -9,6 +9,7 @@ import datum.travels.application.usecase.evento.ListarEventosUseCase;
 import datum.travels.application.usecase.evento.ObtenerDetalleEventoUseCase;
 import datum.travels.domain.exception.ResourceNotFoundException;
 import datum.travels.shared.constant.AuthSimulation;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import jakarta.ws.rs.*;
@@ -31,6 +32,10 @@ import java.util.List;
  * - POST /api/eventos → Crear nuevo evento
  * - GET /api/eventos/{id} → Obtener detalle de evento
  * - PATCH /api/eventos/{id}/estado → Actualizar estado del evento
+ * 
+ * 🔐 PROTECCIÓN CON KEYCLOAK:
+ * - Todos los endpoints requieren autenticación (token JWT de Keycloak)
+ * - Algunos endpoints requieren roles específicos (@RolesAllowed)
  */
 @Path("/api/eventos")
 @Produces(MediaType.APPLICATION_JSON)
@@ -54,14 +59,20 @@ public class EventoController {
      * GET /api/eventos?idEmpleado={id}
      * Lista todos los eventos de un empleado
      * 
+     * 🔐 Requiere: Token JWT válido de Keycloak
+     * 👥 Roles permitidos: empleado, gerente, admin
+     * 
      * ⚠️ SIMULACIÓN: Si no se proporciona idEmpleado, usa AuthSimulation.ID_EMPLEADO_SIMULADO
      * Cambiar el valor en: shared/constant/AuthSimulation.java
      */
     @GET
+    @RolesAllowed({"empleado", "gerente", "admin"})
     @Operation(summary = "Listar eventos", description = "Obtiene todos los eventos de un empleado")
     @APIResponses(value = {
             @APIResponse(responseCode = "200", description = "Lista de eventos obtenida exitosamente",
-                    content = @Content(schema = @Schema(implementation = EventoResponse.class)))
+                    content = @Content(schema = @Schema(implementation = EventoResponse.class))),
+            @APIResponse(responseCode = "401", description = "No autenticado"),
+            @APIResponse(responseCode = "403", description = "Sin permisos")
     })
     public Response listarEventos(
             @QueryParam("idEmpleado") Long idEmpleado
@@ -76,8 +87,12 @@ public class EventoController {
     /**
      * POST /api/eventos
      * Crea un nuevo evento
+     * 
+     * 🔐 Requiere: Token JWT válido de Keycloak
+     * 👥 Roles permitidos: empleado, admin
      */
     @POST
+    @RolesAllowed({"empleado", "admin"})
     @Operation(summary = "Crear evento", description = "Crea un nuevo evento de viaje o gasto de representación")
     @APIResponses(value = {
             @APIResponse(responseCode = "201", description = "Evento creado exitosamente",

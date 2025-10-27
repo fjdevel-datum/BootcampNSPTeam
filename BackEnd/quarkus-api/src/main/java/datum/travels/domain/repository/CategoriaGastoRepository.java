@@ -1,6 +1,11 @@
 package datum.travels.domain.repository;
 
+import datum.travels.domain.model.CategoriaGasto;
+import java.util.List;
+
 /**
  * Contrato del repositorio de CategoriaGasto
- * TODO: Definir métodos del repositorio
  */
+public interface CategoriaGastoRepository {
+    List<CategoriaGasto> listarTodas();
+}

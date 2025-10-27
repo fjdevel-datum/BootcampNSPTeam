@@ -76,14 +76,19 @@ export const eventosService = {
    * Crea un nuevo evento
    * 
    * @param nombreEvento - Nombre del evento
-   * @param idEmpleado - ID del empleado (opcional si el backend usa simulación)
+   * @param idEmpleado - ID del empleado (opcional, el backend usa simulación si no se envía)
    * @returns Evento creado
    */
   async crearEvento(nombreEvento: string, idEmpleado?: number): Promise<EventoBackend> {
     try {
-      const requestBody = idEmpleado 
-        ? { nombreEvento, idEmpleado }
-        : { nombreEvento };
+      // Construir request body
+      // Si no se proporciona idEmpleado, el backend usará AuthSimulation.ID_EMPLEADO_SIMULADO
+      const requestBody: { nombreEvento: string; idEmpleado?: number } = { nombreEvento };
+      
+      // Solo agregar idEmpleado si se proporciona explícitamente
+      if (idEmpleado !== undefined) {
+        requestBody.idEmpleado = idEmpleado;
+      }
 
       const response = await fetch(`${API_BASE_URL}/api/eventos`, {
         method: "POST",
@@ -94,13 +99,37 @@ export const eventosService = {
       });
 
       if (!response.ok) {
-        throw new Error(`Error al crear evento: ${response.status} ${response.statusText}`);
+        const errorText = await response.text();
+        throw new Error(`Error al crear evento: ${response.status} ${response.statusText} - ${errorText}`);
       }
 
       const evento: EventoBackend = await response.json();
       return evento;
     } catch (error) {
       console.error("Error en crearEvento:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Elimina un evento existente
+   * 
+   * @param idEvento - ID del evento a eliminar
+   */
+  async eliminarEvento(idEvento: number): Promise<void> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/eventos/${idEvento}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error al eliminar evento: ${response.status} ${response.statusText}`);
+      }
+    } catch (error) {
+      console.error("Error en eliminarEvento:", error);
       throw error;
     }
   },

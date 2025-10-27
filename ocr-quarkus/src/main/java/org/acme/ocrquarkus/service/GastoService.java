@@ -91,12 +91,19 @@ public class GastoService {
                 : null;
         LocalDate fecha = parseFecha(fechaStr);
 
+        // Extraer ID de categoría (nuevo campo)
+        Long idCategoria = null;
+        if (json.has("IdCategoria") && !json.get("IdCategoria").isNull()) {
+            idCategoria = json.get("IdCategoria").asLong();
+        }
+
         // Crear y guardar el gasto
         Gasto gasto = new Gasto();
         gasto.lugar = nombreEmpresa;
         gasto.descripcion = descripcion;
         gasto.monto = montoTotal;
         gasto.fecha = fecha;
+        gasto.idCategoria = idCategoria;
 
         gastoRepository.persist(gasto);
         return gasto;

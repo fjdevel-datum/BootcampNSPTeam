@@ -8,8 +8,8 @@ import {
   parseLlmResponse,
   saveGastoFromLlm,
   uploadGastoFile,
-  type OcrAnalysisResponse,
 } from "../services/ocr";
+import { obtenerCategorias, type CategoriaGasto } from "../services/categorias";
 
 interface GastoFormProps {
   imageData?: string;
@@ -32,6 +32,7 @@ const DEFAULT_FORM: GastoFormData = {
   descripcion: "",
   montoTotal: "",
   fecha: "",
+  idCategoria: "",
 };
 
 const FILE_LABEL: Record<"camera" | "file", string> = {
@@ -62,12 +63,13 @@ export default function GastoForm({
   const sourceFile = isRouteMode ? locationState!.sourceFile : propSourceFile!;
   
   const [formData, setFormData] = useState<GastoFormData>(DEFAULT_FORM);
-  const [ocrDetails, setOcrDetails] = useState<OcrAnalysisResponse | null>(null);
   const [llmJson, setLlmJson] = useState<string>("");
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(true);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
+  const [categorias, setCategorias] = useState<CategoriaGasto[]>([]);
+  const [isLoadingCategorias, setIsLoadingCategorias] = useState<boolean>(true);
 
   // Handler para cancelar
   const handleCancel = () => {
@@ -88,6 +90,35 @@ export default function GastoForm({
     }
   };
 
+  // Cargar categorías al montar el componente
+  useEffect(() => {
+    let cancelled = false;
+
+    const cargarCategorias = async () => {
+      try {
+        const categoriasObtenidas = await obtenerCategorias();
+        if (!cancelled) {
+          setCategorias(categoriasObtenidas);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          console.error("Error al cargar categorías:", err);
+          setError("No se pudieron cargar las categorías de gasto.");
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingCategorias(false);
+        }
+      }
+    };
+
+    cargarCategorias();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -100,8 +131,6 @@ export default function GastoForm({
       try {
         const analysis = await analyzeExpenseImage(sourceFile);
         if (cancelled) return;
-
-        setOcrDetails(analysis);
 
         const parsed = parseLlmResponse(analysis.llmResponse);
         setFormData(parsed.formData);
@@ -133,7 +162,9 @@ export default function GastoForm({
     return fileName ? `${label} - ${fileName}` : label;
   }, [imageType, fileName]);
 
-  const handleChange = (field: keyof GastoFormData) => (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (field: keyof GastoFormData) => (
+    event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
     const { value } = event.target;
     setFormData((prev) => ({
       ...prev,
@@ -160,6 +191,11 @@ export default function GastoForm({
       return;
     }
 
+    if (!formData.idCategoria) {
+      setError("Debes seleccionar una categoría de gasto.");
+      return;
+    }
+
     const amount = normalizeAmount(formData.montoTotal);
     if (amount === null) {
       setError("El monto total no es valido. Usa solo numeros y dos decimales.");
@@ -171,6 +207,7 @@ export default function GastoForm({
       descripcion: formData.descripcion.trim(),
       montoTotal: amount,
       fecha: formData.fecha,
+      idCategoria: formData.idCategoria,
     };
 
     setFormData(sanitized);
@@ -312,32 +349,37 @@ export default function GastoForm({
                   />
                 </div>
 
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Categoría <span className="text-red-500">*</span>
+                  </label>
+                  {isLoadingCategorias ? (
+                    <div className="w-full px-4 py-2 border border-slate-300 rounded-lg bg-slate-100 text-slate-500 flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Cargando categorías...</span>
+                    </div>
+                  ) : (
+                    <select
+                      value={formData.idCategoria}
+                      onChange={handleChange("idCategoria")}
+                      disabled={isAnalyzing || isSaving}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent disabled:bg-slate-100 disabled:text-slate-500"
+                    >
+                      <option value="">-- Selecciona una categoría --</option>
+                      {categorias.map((categoria) => (
+                        <option key={categoria.idCategoria} value={categoria.idCategoria}>
+                          {categoria.nombreCategoria}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
                   Verifica los datos antes de guardar. Puedes editarlos si el OCR no los detecto
                   correctamente.
                 </div>
               </form>
-
-              {ocrDetails && (
-                <div className="mt-6 bg-slate-900 rounded-lg p-4 space-y-4">
-                  <div>
-                    <h4 className="text-xs font-semibold uppercase text-slate-400 mb-2">
-                      JSON enviado por el LLM
-                    </h4>
-                    <pre className="text-xs text-slate-200 whitespace-pre-wrap">
-                      {llmJson || "(sin contenido)"}
-                    </pre>
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-semibold uppercase text-slate-400 mb-2">
-                      Texto detectado por OCR
-                    </h4>
-                    <pre className="text-xs text-slate-300 whitespace-pre-wrap max-h-48 overflow-y-auto">
-                      {ocrDetails.extractedText || "(sin texto)"}
-                    </pre>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </div>

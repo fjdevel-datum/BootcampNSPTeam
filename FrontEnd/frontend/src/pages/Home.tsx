@@ -1,4 +1,4 @@
-﻿import { ArrowRight, Bell, CreditCard, Menu, Plus, Search, X } from "lucide-react";
+﻿import { ArrowRight, Bell, CreditCard, Menu, Plus, Search, Trash2, X } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import type { FormEvent, ReactNode } from "react";
@@ -15,6 +15,7 @@ export default function HomePage() {
   const [error, setError] = useState<string | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+  const [eventoAEliminar, setEventoAEliminar] = useState<EventoBackend | null>(null);
   const navigate = useNavigate();
 
   // Cargar eventos al montar el componente
@@ -53,6 +54,23 @@ export default function HomePage() {
     } catch (err) {
       console.error("Error al crear evento:", err);
       alert("No se pudo crear el evento. Intenta de nuevo.");
+    }
+  }
+
+  async function handleEliminarEvento() {
+    if (!eventoAEliminar) return;
+
+    try {
+      await eventosService.eliminarEvento(eventoAEliminar.idEvento);
+      
+      // Recargar la lista de eventos
+      await cargarEventos();
+      
+      // Cerrar modal
+      setEventoAEliminar(null);
+    } catch (err) {
+      console.error("Error al eliminar evento:", err);
+      alert("No se pudo eliminar el evento. Intenta de nuevo.");
     }
   }
 
@@ -163,6 +181,7 @@ export default function HomePage() {
                   label={evento.nombreEvento} 
                   colorClass={palette[index % palette.length]}
                   onClick={() => navigate(`/event/${encodeURIComponent(evento.nombreEvento)}`)}
+                  onDelete={() => setEventoAEliminar(evento)}
                   fechaRegistro={evento.fechaRegistro}
                   estado={evento.estado}
                 />
@@ -328,6 +347,46 @@ export default function HomePage() {
           </div>
         </div>
       )}
+
+      {/* Modal de Confirmación de Eliminación */}
+      {eventoAEliminar && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center px-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+            <div className="flex flex-col items-center text-center">
+              <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center mb-4">
+                <Trash2 className="h-6 w-6 text-red-600" />
+              </div>
+              
+              <h2 className="text-lg font-semibold text-slate-900 mb-2">
+                ¿Seguro que quieres eliminar el evento?
+              </h2>
+              
+              <p className="text-sm text-slate-600 mb-1">
+                Evento: <span className="font-semibold">{eventoAEliminar.nombreEvento}</span>
+              </p>
+              
+              <p className="text-sm text-red-600 font-medium mb-6">
+                Todos los gastos registrados serán eliminados también
+              </p>
+
+              <div className="flex gap-3 w-full">
+                <button
+                  onClick={() => setEventoAEliminar(null)}
+                  className="flex-1 px-4 py-2 rounded-lg border border-slate-300 text-slate-700 font-medium hover:bg-slate-50 transition"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleEliminarEvento}
+                  className="flex-1 px-4 py-2 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 transition"
+                >
+                  Eliminar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
@@ -349,31 +408,50 @@ interface EventButtonProps {
   label: string;
   colorClass: string;
   onClick?: () => void;
+  onDelete?: () => void;
   fechaRegistro?: string;
   estado?: string;
 }
 
-function EventButton({ label, colorClass, onClick, fechaRegistro, estado }: EventButtonProps) {
+function EventButton({ label, colorClass, onClick, onDelete, fechaRegistro, estado }: EventButtonProps) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex flex-col rounded-2xl px-6 py-5 text-left text-white shadow-lg transition hover:translate-y-0.5 hover:shadow-xl ${colorClass}`}
-    >
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold uppercase tracking-wide">{label}</span>
-        <ArrowRight className="h-5 w-5" />
-      </div>
-      {fechaRegistro && (
-        <div className="mt-2 flex items-center gap-4 text-xs text-white/80">
-          <span>Fecha: {fechaRegistro}</span>
-          {estado && (
-            <span className="px-2 py-1 bg-white/20 rounded-full capitalize">
-              {estado}
-            </span>
+    <div className="relative group">
+      <button
+        type="button"
+        onClick={onClick}
+        className={`w-full flex flex-col rounded-2xl px-6 py-5 text-left text-white shadow-lg transition hover:translate-y-0.5 hover:shadow-xl ${colorClass}`}
+      >
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-semibold uppercase tracking-wide">{label}</span>
+          
+          {/* Botón de eliminar en lugar de la flecha */}
+          {onDelete && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+              className="h-8 w-8 flex items-center justify-center rounded-lg bg-white/10 hover:bg-red-500 text-white transition backdrop-blur-sm"
+              aria-label="Eliminar evento"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
           )}
         </div>
-      )}
-    </button>
+        {fechaRegistro && (
+          <div className="mt-2 flex items-center justify-between text-xs text-white/80">
+            <div className="flex items-center gap-4">
+              <span>Fecha: {fechaRegistro}</span>
+              {estado && (
+                <span className="px-2 py-1 bg-white/20 rounded-full capitalize">
+                  {estado}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+      </button>
+    </div>
   );
 }

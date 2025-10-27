@@ -3,6 +3,7 @@
 # ════════════════════════════════════════════════════════════════════════════
 # Servicios:
 #   - Oracle XE 21c (Puerto 1522) → Base de datos principal
+#   - Keycloak (Puerto 8180) → Autenticación y Autorización
 #
 # Uso:
 #   docker-compose -f docker-compose-dev.yml up -d
@@ -50,6 +51,49 @@ services:
     
     restart: unless-stopped
 
+  # ═══════════════════════════════════════════════════════════════════════
+  # Keycloak - Servidor de Autenticación y Autorización
+  # ═══════════════════════════════════════════════════════════════════════
+  datum-keycloak:
+    image: quay.io/keycloak/keycloak:26.0.7
+    container_name: datum-keycloak-dev
+    environment:
+      # Credenciales del Admin de Keycloak
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin2025
+      
+      # Modo de desarrollo (permite HTTP sin SSL)
+      KC_HEALTH_ENABLED: "true"
+      KC_METRICS_ENABLED: "true"
+      KC_HOSTNAME_STRICT: "false"
+      KC_HOSTNAME_STRICT_HTTPS: "false"
+      KC_HTTP_ENABLED: "true"
+      KC_PROXY: "edge"
+    
+    volumes:
+      # Persistencia de datos de Keycloak
+      - datum_keycloak_data:/opt/keycloak/data
+    
+    ports:
+      # Puerto 8180 (host) → 8080 (contenedor)
+      # Usamos 8180 para no conflictuar con Quarkus en 8080
+      - "8180:8080"
+    
+    networks:
+      - datum-network
+    
+    command:
+      - start-dev
+    
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health/ready || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 90s
+    
+    restart: unless-stopped
+
 # ═══════════════════════════════════════════════════════════════════════
 # Networks
 # ═══════════════════════════════════════════════════════════════════════
@@ -65,17 +109,25 @@ volumes:
   datum_db_data:
     name: datum-oracle-data-dev
     driver: local
+  
+  datum_keycloak_data:
+    name: datum-keycloak-data-dev
+    driver: local
 
 # ═══════════════════════════════════════════════════════════════════════
 # NOTAS DE USO
 # ═══════════════════════════════════════════════════════════════════════
 # 
-# 1. Levantar Oracle:
+# 1. Levantar servicios:
 #    docker-compose -f docker-compose-dev.yml up -d
 #
 # 2. Ver logs:
 #    docker-compose -f docker-compose-dev.yml logs -f datum-db
+#    docker-compose -f docker-compose-dev.yml logs -f datum-keycloak
 #
+# ┌─────────────────────────────────────────────────────────────────────┐
+# │ ORACLE DATABASE                                                     │
+# └─────────────────────────────────────────────────────────────────────┘
 # 3. Conectar con SQL Developer:
 #    Host: localhost
 #    Port: 1522
@@ -87,10 +139,31 @@ volumes:
 #    docker exec -it datum-oracle-dev bash
 #    sqlplus datum_user/datum2025@XEPDB1
 #
-# 5. Detener:
+# ┌─────────────────────────────────────────────────────────────────────┐
+# │ KEYCLOAK                                                            │
+# └─────────────────────────────────────────────────────────────────────┘
+# 5. Acceder a Admin Console:
+#    URL: http://localhost:8180
+#    Username: admin
+#    Password: admin2025
+#
+# 6. Crear Realm, Roles y Usuarios:
+#    - Ingresa a http://localhost:8180
+#    - Inicia sesión con las credenciales de admin
+#    - Crea un nuevo Realm (ej: "datum-travels")
+#    - Define roles (ej: empleado, administrador, contabilidad)
+#    - Crea usuarios y asigna roles
+#
+# ┌─────────────────────────────────────────────────────────────────────┐
+# │ COMANDOS GENERALES                                                  │
+# └─────────────────────────────────────────────────────────────────────┘
+# 7. Detener:
 #    docker-compose -f docker-compose-dev.yml down
 #
-# 6. Borrar datos y empezar limpio:
+# 8. Borrar datos y empezar limpio:
 #    docker-compose -f docker-compose-dev.yml down -v
+#
+# 9. Ver estado de servicios:
+#    docker-compose -f docker-compose-dev.yml ps
 #
 # ═══════════════════════════════════════════════════════════════════════

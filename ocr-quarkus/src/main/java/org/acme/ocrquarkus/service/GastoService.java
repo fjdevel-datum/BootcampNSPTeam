@@ -64,25 +64,24 @@ public class GastoService {
 
     @Inject
     AzureStorageService azureStorageService;
+
+    @Inject
+    OpenKmStorageService openKmStorageService;
     
     @Transactional
     public Gasto guardarGastoDesdeJson(String jsonStr) throws IOException {
         System.out.println("JSON recibido en GastoService: " + jsonStr);
         JsonNode json = objectMapper.readTree(jsonStr);
         
-        // Extraer datos del JSON
         String nombreEmpresa = json.has("NombreEmpresa") ? json.get("NombreEmpresa").asText() :
                              json.has("Nombre de la empresa") ? json.get("Nombre de la empresa").asText().split(",")[0].trim() :
                              "Desconocido";
         
         String descripcion = json.has("Descripcion") ? json.get("Descripcion").asText() : "";
-        // Truncar la descripción si excede los 50 caracteres
         if (descripcion.length() > 50) {
             descripcion = descripcion.substring(0, 47) + "...";
         }
 
-        // Obtener monto total (mantener formato original)
-        // Procesar monto: eliminar símbolo $ y convertir a Double
         String montoStr = json.has("MontoTotal") ? json.get("MontoTotal").asText().replace("$", "").trim() : "0";
         Double montoTotal = Double.parseDouble(montoStr);
 
@@ -91,13 +90,11 @@ public class GastoService {
                 : null;
         LocalDate fecha = parseFecha(fechaStr);
 
-        // Extraer ID de categoría (nuevo campo)
         Long idCategoria = null;
         if (json.has("IdCategoria") && !json.get("IdCategoria").isNull()) {
             idCategoria = json.get("IdCategoria").asLong();
         }
 
-        // Crear y guardar el gasto
         Gasto gasto = new Gasto();
         gasto.lugar = nombreEmpresa;
         gasto.descripcion = descripcion;
@@ -109,15 +106,8 @@ public class GastoService {
         return gasto;
     }
 
-    // =============== 📦 ARCHIVOS EN AZURE (por gasto) ===============
+    // =============== Archivos en Azure (por gasto) ===============
 
-    /**
-     * Sube un archivo a Azure y lo asocia al gasto (sobrescribe si ya tenía).
-     * @param gastoId id del gasto
-     * @param bytes contenido del archivo
-     * @param originalName nombre para guardar (p.ej. factura.pdf)
-     * @param contentType MIME (image/png, application/pdf, …)
-     */
     @Transactional
     public Gasto attachFile(Long gastoId, byte[] bytes, String originalName, String contentType) {
         Gasto g = gastoRepository.findById(gastoId);
@@ -128,25 +118,24 @@ public class GastoService {
                 : originalName.trim();
 
         String blobName = "gastos/" + gastoId + "/" + safeName;
-
-        InputStream in = new ByteArrayInputStream(bytes);
         String ct = (contentType == null || contentType.isBlank())
                 ? "application/octet-stream" : contentType;
 
+        InputStream in = new ByteArrayInputStream(bytes);
+
         String url = azureStorageService.upload(blobName, in, bytes.length, ct);
 
-        // Guarda metadata en la fila
         g.setBlobName(blobName);
         g.setBlobUrl(url);
         g.setFileContentType(ct);
         g.setFileSize((long) bytes.length);
+        g.setOpenkmDocUuid(
+                openKmStorageService.store(g.idGasto, safeName, bytes, ct).orElse(null)
+        );
 
         return g;
     }
 
-    /**
-     * Descarga el archivo asociado a un gasto.
-     */
     public byte[] downloadFile(Long gastoId) throws Exception {
         Gasto g = gastoRepository.findById(gastoId);
         if (g == null || g.getBlobName() == null) {
@@ -155,9 +144,6 @@ public class GastoService {
         return azureStorageService.download(g.getBlobName());
     }
 
-    /**
-     * Elimina el archivo en Azure y limpia las columnas del gasto.
-     */
     @Transactional
     public boolean removeFile(Long gastoId) {
         Gasto g = gastoRepository.findById(gastoId);
@@ -169,13 +155,10 @@ public class GastoService {
         g.setBlobUrl(null);
         g.setFileContentType(null);
         g.setFileSize(null);
+        g.setOpenkmDocUuid(null);
         return deleted;
     }
 
-    /**
-     * Genera una URL temporal (SAS) de solo lectura para abrir/mostrar el archivo en el frontend.
-     * @param minutes minutos de validez del enlace
-     */
     public String buildTempReadUrl(Long gastoId, int minutes) {
         Gasto g = gastoRepository.findById(gastoId);
         if (g == null || g.getBlobName() == null) {
@@ -197,9 +180,9 @@ public class GastoService {
             try {
                 return LocalDate.parse(candidate, formatter);
             } catch (DateTimeParseException ignored) {
-                // probar el siguiente formato conocido
             }
         }
         return null;
     }
 }
+

@@ -1,0 +1,44 @@
+version: "3.9"
+
+services:
+  oracle:
+    image: gvenzl/oracle-xe:21-slim
+    container_name: datum-ocr
+    restart: unless-stopped
+    environment:
+      ORACLE_PASSWORD: oracle2025
+      APP_USER: OKM
+      APP_USER_PASSWORD: okm
+    ports:
+      - "${OPENKM_ORACLE_PORT:-1523}:1521"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >
+          echo "select 1 from dual;" | sqlplus -L -s okm/okm@//localhost:1521/XEPDB1 >/dev/null || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 40s
+    volumes:
+      - ./db-init:/container-entrypoint-initdb.d
+      - ./oracle-data:/opt/oracle/oradata
+
+  openkm:
+    image: openkm/openkm-ce:latest
+    container_name: openkm-ce
+    restart: unless-stopped
+    depends_on:
+      oracle:
+        condition: service_healthy
+    ports:
+      - "8081:8080"
+    environment:
+      JAVA_HOME: /usr/lib/jvm/java-8-openjdk-amd64
+      JRE_HOME: /usr/lib/jvm/java-8-openjdk-amd64/jre
+      JAVA_OPTS: "-Dhibernate.dialect=org.hibernate.dialect.Oracle10gDialect -Djavax.net.ssl.trustStoreType=JKS"
+    volumes:
+      - ./config/OpenKM.cfg:/opt/tomcat/OpenKM.cfg
+      - ./config/server.xml:/opt/tomcat/conf/server.xml
+      - ./data:/opt/tomcat/repository
+      - ./logs:/opt/tomcat/logs

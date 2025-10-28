@@ -93,11 +93,11 @@
       <version>12.23.0</version>
     </dependency>
 
-    <!-- Security -->
+    <!-- Security 
     <dependency>
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-oidc</artifactId>
-    </dependency>
+    </dependency>-->
 
     <!-- Tests -->
     <dependency>

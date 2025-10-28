@@ -6,7 +6,6 @@ import java.time.LocalDate;
 @Entity
 @Table(name = "Gasto")
 public class Gasto {
-    
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id_gasto")
@@ -31,7 +30,7 @@ public class Gasto {
     @Column(name = "blob_name", length = 300)
     private String blobName;
 
-    // URL completa del blob (útil para debug o para generar SAS a partir de ella)
+    // URL completa del blob (util para debug o para generar SAS a partir de ella)
     @Column(name = "blob_url", length = 1000)
     private String blobUrl;
 
@@ -42,6 +41,8 @@ public class Gasto {
     @Column(name = "file_size_bytes")
     private Long fileSize;
 
+    @Column(name = "openkm_doc_uuid", length = 64)
+    private String openkmDocUuid;
 
     // Getters y Setters
     public String getBlobName() {
@@ -76,24 +77,28 @@ public class Gasto {
         this.fileSize = fileSize;
     }
 
-     // Constructor vacío
-    public Gasto() {}
+    public String getOpenkmDocUuid() {
+        return openkmDocUuid;
+    }
+
+    public void setOpenkmDocUuid(String openkmDocUuid) {
+        this.openkmDocUuid = openkmDocUuid;
+    }
+
+    // Constructor vacio
+    public Gasto() {
+    }
 
     public Gasto(String descripcion, String lugar, LocalDate fecha, Double monto) {
         this.descripcion = descripcion;
         this.lugar = lugar;
         this.fecha = fecha;
         this.monto = monto;
-
         this.blobName = null;
         this.blobUrl = null;
         this.fileContentType = null;
         this.fileSize = null;
+        this.openkmDocUuid = null;
     }
-
-
-    
-    
-
-    
 }
+

@@ -1,55 +1,93 @@
-# ════════════════════════════════════════════════════════════════════════════
 # Docker Compose - Datum Travels DEV
-# ════════════════════════════════════════════════════════════════════════════
 # Servicios:
+#   - Oracle XE 21c (Puerto 1522) -> Base de datos principal
+#   - OpenKM Community Edition (Puerto 8082)
 #   - Oracle XE 21c (Puerto 1522) → Base de datos principal
 #   - Keycloak (Puerto 8180) → Autenticación y Autorización
 #
 # Uso:
 #   docker-compose -f docker-compose-dev.yml up -d
 #   docker-compose -f docker-compose-dev.yml down
-# ════════════════════════════════════════════════════════════════════════════
 
 services:
-  # ═══════════════════════════════════════════════════════════════════════
   # Oracle XE Database - Base de datos principal de Datum Travels
-  # ═══════════════════════════════════════════════════════════════════════
   datum-db:
     image: gvenzl/oracle-xe:21-slim
     container_name: datum-oracle-dev
     environment:
       # Password del usuario SYS/SYSTEM
       ORACLE_PASSWORD: oracle2025
-      
-      # Usuario de aplicación
+
+      # Usuario de aplicacion
       APP_USER: datum_user
       APP_USER_PASSWORD: datum2025
-      
-      # Opcional: crear el esquema automáticamente
+
+      # Opcional: crear el esquema automaticamente
       ORACLE_DATABASE: XEPDB1
-    
+
     volumes:
       # Persistencia de datos
       - datum_db_data:/opt/oracle/oradata
-      
-      # Script de inicialización (opcional)
       # - ./BackEnd/scripts/init-oracle.sql:/docker-entrypoint-initdb.d/init.sql
-    
+
     ports:
-      # Puerto 1522 (host) → 1521 (contenedor)
+      # Puerto 1522 (host) -> 1521 (contenedor)
       - "1522:1521"
-    
+
     networks:
       - datum-network
-    
+
     healthcheck:
       test: ["CMD-SHELL", "healthcheck.sh"]
       interval: 30s
       timeout: 10s
       retries: 10
       start_period: 90s  # Oracle tarda en arrancar
-    
+
     restart: unless-stopped
+
+  openkm-db:
+    image: gvenzl/oracle-xe:21-slim
+    container_name: datum-openkm-db
+    restart: unless-stopped
+    environment:
+      ORACLE_PASSWORD: oracle2025
+      APP_USER: OKM
+      APP_USER_PASSWORD: okm
+    volumes:
+      - ./ocr-quarkus/openkm/oracle-data:/opt/oracle/oradata
+      - ./ocr-quarkus/openkm/db-init:/container-entrypoint-initdb.d
+    ports:
+      - "${OPENKM_ORACLE_PORT:-1523}:1521"
+    healthcheck:
+      test: ["CMD-SHELL", "healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 40s
+    networks:
+      - datum-network
+
+  openkm:
+    image: openkm/openkm-ce:latest
+    container_name: datum-openkm
+    restart: unless-stopped
+    depends_on:
+      openkm-db:
+        condition: service_healthy
+    environment:
+      JAVA_HOME: /usr/lib/jvm/java-8-openjdk-amd64
+      JRE_HOME: /usr/lib/jvm/java-8-openjdk-amd64/jre
+      JAVA_OPTS: "-Dhibernate.dialect=org.hibernate.dialect.Oracle10gDialect -Djavax.net.ssl.trustStoreType=JKS"
+    ports:
+      - "8082:8080"
+    volumes:
+      - ./ocr-quarkus/openkm/config/OpenKM.cfg:/opt/tomcat/OpenKM.cfg
+      - ./ocr-quarkus/openkm/config/server.xml:/opt/tomcat/conf/server.xml
+      - ./ocr-quarkus/openkm/data:/opt/tomcat/repository
+      - ./ocr-quarkus/openkm/logs:/opt/tomcat/logs
+    networks:
+      - datum-network
 
   # ═══════════════════════════════════════════════════════════════════════
   # Keycloak - Servidor de Autenticación y Autorización
@@ -102,9 +140,6 @@ networks:
     driver: bridge
     name: datum-dev-network
 
-# ═══════════════════════════════════════════════════════════════════════
-# Volumes
-# ═══════════════════════════════════════════════════════════════════════
 volumes:
   datum_db_data:
     name: datum-oracle-data-dev
@@ -114,13 +149,12 @@ volumes:
     name: datum-keycloak-data-dev
     driver: local
 
-# ═══════════════════════════════════════════════════════════════════════
 # NOTAS DE USO
+# 1. Levantar servicios:
 # ═══════════════════════════════════════════════════════════════════════
 # 
 # 1. Levantar servicios:
 #    docker-compose -f docker-compose-dev.yml up -d
-#
 # 2. Ver logs:
 #    docker-compose -f docker-compose-dev.yml logs -f datum-db
 #    docker-compose -f docker-compose-dev.yml logs -f datum-keycloak
@@ -134,10 +168,12 @@ volumes:
 #    Service: XEPDB1
 #    User: datum_user
 #    Password: datum2025
-#
-# 4. Acceso al contenedor:
+# 4. Acceso al contenedor Oracle:
 #    docker exec -it datum-oracle-dev bash
 #    sqlplus datum_user/datum2025@XEPDB1
+# 5. Acceder a OpenKM:
+#    http://localhost:8082/OpenKM (usuario: okmAdmin / admin)
+# 6. Detener servicios:
 #
 # ┌─────────────────────────────────────────────────────────────────────┐
 # │ KEYCLOAK                                                            │
@@ -159,9 +195,12 @@ volumes:
 # └─────────────────────────────────────────────────────────────────────┘
 # 7. Detener:
 #    docker-compose -f docker-compose-dev.yml down
+# 7. Borrar datos y empezar limpio:
 #
 # 8. Borrar datos y empezar limpio:
 #    docker-compose -f docker-compose-dev.yml down -v
+
+
 #
 # 9. Ver estado de servicios:
 #    docker-compose -f docker-compose-dev.yml ps

@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import type { FormEvent } from "react";
 import type { ReactElement } from "react";
 import { User, Lock } from "lucide-react";
@@ -9,8 +8,10 @@ import * as authService from "../services/authService";
 import datumLogo from "../assets/datumredsoft.png"; 
 import googleLogo from "../assets/google.png";
 
+// 🔥 LOG INMEDIATO AL CARGAR EL MÓDULO
+console.log('🔥🔥🔥 Login.tsx CARGADO - VERSIÓN NUEVA CON window.location.replace 🔥🔥🔥');
+
 export default function LoginPage() {
-  const navigate = useNavigate();
   const { login } = useAuth();
   
   const [username, setUsername] = useState("");
@@ -26,30 +27,12 @@ export default function LoginPage() {
     try {
       await login({ username, password });
       
-      // 🔍 DEBUG: Ver el JWT completo
-      const accessToken = localStorage.getItem('access_token');
-      const refreshToken = localStorage.getItem('refresh_token');
+      // Determinar la ruta según el rol
+      const targetPath = authService.isAdmin() ? '/admin' : '/home';
       
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      console.log('🎫 ACCESS TOKEN (primeros 50 chars):', accessToken?.substring(0, 50) + '...');
-      console.log('🔄 REFRESH TOKEN (primeros 50 chars):', refreshToken?.substring(0, 50) + '...');
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      
-      // Decodificar y mostrar usuario
-      const user = authService.getUserFromToken();
-      console.log('� Usuario decodificado:', user);
-      console.log('� Roles:', user?.roles);
-      console.log('�️  Es admin?:', authService.isAdmin());
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      
-      // Redirigir según el rol (usando authService directamente)
-      if (authService.isAdmin()) {
-        console.log('✅ Redirigiendo a /admin');
-        navigate('/admin');
-      } else {
-        console.log('✅ Redirigiendo a /home');
-        navigate('/home');
-      }
+      // Usar window.location.replace para NO dejar el login en el historial
+      // Esto es similar a lo que hacen Google, Facebook, Netflix
+      window.location.replace(targetPath);
     } catch (err) {
       console.error('Error al iniciar sesión:', err);
       setError(err instanceof Error ? err.message : 'Credenciales inválidas');
@@ -190,3 +173,4 @@ function GoogleButton({ onClick }: { onClick: () => void }) {
     </button>
   );
 }
+

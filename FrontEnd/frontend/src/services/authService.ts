@@ -59,8 +59,25 @@ export async function login(credentials: LoginCredentials): Promise<KeycloakToke
 export async function logout(): Promise<void> {
   const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
 
+  console.log('🚪 [authService.logout] Iniciando logout...');
+  console.log('🚪 [authService.logout] Tokens ANTES de limpiar:', {
+    access_token: localStorage.getItem(ACCESS_TOKEN_KEY)?.substring(0, 50) + '...',
+    refresh_token: refreshToken?.substring(0, 50) + '...',
+  });
+
+  // PRIMERO limpiar tokens locales INMEDIATAMENTE
+  localStorage.removeItem(ACCESS_TOKEN_KEY);
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
+
+  console.log('🧹 [authService.logout] Tokens DESPUÉS de limpiar:', {
+    access_token: localStorage.getItem(ACCESS_TOKEN_KEY),
+    refresh_token: localStorage.getItem(REFRESH_TOKEN_KEY),
+  });
+
+  // LUEGO intentar hacer logout en Keycloak (en background)
   try {
     if (refreshToken) {
+      console.log('🌐 [authService.logout] Haciendo logout en Keycloak...');
       await fetch(LOGOUT_ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -69,14 +86,14 @@ export async function logout(): Promise<void> {
           refresh_token: refreshToken,
         }),
       });
+      console.log('✅ [authService.logout] Logout en Keycloak exitoso');
     }
   } catch (error) {
-    console.error('Error al hacer logout en Keycloak:', error);
-  } finally {
-    // Limpiar tokens locales
-    localStorage.removeItem(ACCESS_TOKEN_KEY);
-    localStorage.removeItem(REFRESH_TOKEN_KEY);
+    console.error('❌ [authService.logout] Error al hacer logout en Keycloak:', error);
+    // No importa si falla, los tokens ya están eliminados localmente
   }
+  
+  console.log('🏁 [authService.logout] Logout completado');
 }
 
 /**

@@ -1,7 +1,7 @@
 # Docker Compose - Datum Travels DEV
 # Servicios:
 #   - Oracle XE 21c (Puerto 1522) -> Base de datos principal
-#   - OpenKM Community Edition (Puerto 8082)
+#   - OpenKM Community Edition (Puerto 8087)
 #   - Oracle XE 21c (Puerto 1522) → Base de datos principal
 #   - Keycloak (Puerto 8180) → Autenticación y Autorización
 #
@@ -80,7 +80,7 @@ services:
       JRE_HOME: /usr/lib/jvm/java-8-openjdk-amd64/jre
       JAVA_OPTS: "-Dhibernate.dialect=org.hibernate.dialect.Oracle10gDialect -Djavax.net.ssl.trustStoreType=JKS"
     ports:
-      - "8082:8080"
+      - "8087:8080"
     volumes:
       - ./ocr-quarkus/openkm/config/OpenKM.cfg:/opt/tomcat/OpenKM.cfg
       - ./ocr-quarkus/openkm/config/server.xml:/opt/tomcat/conf/server.xml
@@ -172,7 +172,7 @@ volumes:
 #    docker exec -it datum-oracle-dev bash
 #    sqlplus datum_user/datum2025@XEPDB1
 # 5. Acceder a OpenKM:
-#    http://localhost:8082/OpenKM (usuario: okmAdmin / admin)
+#    http://localhost:8087/OpenKM (usuario: okmAdmin / admin)
 # 6. Detener servicios:
 #
 # ┌─────────────────────────────────────────────────────────────────────┐

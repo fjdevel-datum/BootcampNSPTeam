@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import type { FormEvent, ReactNode } from "react";
 import { eventosService } from "../services/eventos";
 import type { EventoBackend } from "../types/event";
+import { useAuth } from "../hooks/useAuth";
 
 const palette = ["bg-sky-900", "bg-orange-600", "bg-rose-900", "bg-emerald-700"];
 
@@ -17,6 +18,14 @@ export default function HomePage() {
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const [eventoAEliminar, setEventoAEliminar] = useState<EventoBackend | null>(null);
   const navigate = useNavigate();
+  const { logout } = useAuth();
+
+  const handleLogout = async () => {
+    console.log('🚪 [Home] Logout iniciado');
+    await logout();
+    console.log('✅ [Home] Logout completado, redirigiendo...');
+    window.location.href = '/';
+  };
 
   // Cargar eventos al montar el componente
   useEffect(() => {
@@ -132,10 +141,7 @@ export default function HomePage() {
                   <hr className="my-2 border-slate-200" />
                   
                   <button
-                    onClick={() => {
-                      navigate('/');
-                      setIsProfileDropdownOpen(false);
-                    }}
+                    onClick={handleLogout}
                     className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 transition font-medium"
                   >
                     Cerrar Sesión
@@ -331,10 +337,7 @@ export default function HomePage() {
 
                 {/* Botón de cerrar sesión */}
                 <button
-                  onClick={() => {
-                    navigate('/');
-                    setIsMenuOpen(false);
-                  }}
+                  onClick={handleLogout}
                   className="w-full flex items-center gap-3 p-3 text-left rounded-lg hover:bg-red-50 text-red-600 transition"
                 >
                   <div className="h-8 w-8 flex items-center justify-center rounded-lg bg-red-100">

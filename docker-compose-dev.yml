@@ -111,6 +111,9 @@ services:
     volumes:
       # Persistencia de datos de Keycloak
       - datum_keycloak_data:/opt/keycloak/data
+      
+      # ⭐ Importación automática de configuración compartida
+      - ./keycloak/import:/opt/keycloak/data/import:ro
     
     ports:
       # Puerto 8180 (host) → 8080 (contenedor)
@@ -122,6 +125,7 @@ services:
     
     command:
       - start-dev
+      - --import-realm  # ⭐ Importa automáticamente archivos .json del directorio import
     
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8080/health/ready || exit 1"]

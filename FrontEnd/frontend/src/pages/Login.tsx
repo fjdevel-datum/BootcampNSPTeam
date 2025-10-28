@@ -1,12 +1,18 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import type { FormEvent } from "react";
 import type { ReactElement } from "react";
 import { User, Lock } from "lucide-react";
+import { useAuth } from "../hooks/useAuth";
+import * as authService from "../services/authService";
 
 import datumLogo from "../assets/datumredsoft.png"; 
 import googleLogo from "../assets/google.png";
 
 export default function LoginPage() {
+  const navigate = useNavigate();
+  const { login } = useAuth();
+  
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -16,21 +22,47 @@ export default function LoginPage() {
     e.preventDefault();
     setError(null);
     setLoading(true);
+    
     try {
-      // TODO: Integrar con Keycloak (OIDC)
-      await new Promise((r) => setTimeout(r, 600));
-      console.log({ username, password });
+      await login({ username, password });
+      
+      // 🔍 DEBUG: Ver el JWT completo
+      const accessToken = localStorage.getItem('access_token');
+      const refreshToken = localStorage.getItem('refresh_token');
+      
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log('🎫 ACCESS TOKEN (primeros 50 chars):', accessToken?.substring(0, 50) + '...');
+      console.log('🔄 REFRESH TOKEN (primeros 50 chars):', refreshToken?.substring(0, 50) + '...');
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      
+      // Decodificar y mostrar usuario
+      const user = authService.getUserFromToken();
+      console.log('� Usuario decodificado:', user);
+      console.log('� Roles:', user?.roles);
+      console.log('�️  Es admin?:', authService.isAdmin());
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      
+      // Redirigir según el rol (usando authService directamente)
+      if (authService.isAdmin()) {
+        console.log('✅ Redirigiendo a /admin');
+        navigate('/admin');
+      } else {
+        console.log('✅ Redirigiendo a /home');
+        navigate('/home');
+      }
     } catch (err) {
-      console.error(err);
-      setError("Algo salió mal. Intenta de nuevo.");
+      console.error('Error al iniciar sesión:', err);
+      setError(err instanceof Error ? err.message : 'Credenciales inválidas');
     } finally {
       setLoading(false);
     }
   }
 
   function handleGoogleSignIn() {
-    // TODO: Redirigir a Keycloak con IdP Google
-    console.log("Google sign-in click");
+    // TODO: Implementar Google Sign-In con Keycloak
+    // Redirigir a: http://localhost:8180/realms/datum-travels/protocol/openid-connect/auth
+    // con parámetros: client_id, redirect_uri, response_type=code, scope=openid
+    console.log("Google sign-in - Pendiente de implementar");
   }
 
   return (

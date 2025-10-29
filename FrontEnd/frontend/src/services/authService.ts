@@ -20,6 +20,32 @@ const LOGOUT_ENDPOINT = `${KEYCLOAK_URL}/realms/${REALM}/protocol/openid-connect
 const { accessToken: ACCESS_TOKEN_KEY, refreshToken: REFRESH_TOKEN_KEY } = STORAGE_KEYS;
 
 /**
+ * Sincroniza el usuario de Keycloak con el backend
+ * Vincula el keycloak_id con el registro de Usuario en BD
+ */
+async function syncUserWithBackend(accessToken: string): Promise<void> {
+  try {
+    const response = await fetch('http://localhost:8081/api/user/sync', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      console.log('✅ Usuario sincronizado con backend:', data);
+    } else {
+      console.warn('⚠️ No se pudo sincronizar usuario con backend');
+    }
+  } catch (error) {
+    console.error('❌ Error al sincronizar usuario:', error);
+    // No bloquear el login si falla la sincronización
+  }
+}
+
+/**
  * Realiza login con Keycloak usando credenciales
  */
 export async function login(credentials: LoginCredentials): Promise<KeycloakTokenResponse> {
@@ -45,6 +71,9 @@ export async function login(credentials: LoginCredentials): Promise<KeycloakToke
     // Guardar tokens en localStorage
     localStorage.setItem(ACCESS_TOKEN_KEY, data.access_token);
     localStorage.setItem(REFRESH_TOKEN_KEY, data.refresh_token);
+
+    // ✨ NUEVO: Sincronizar con backend (vincular keycloak_id)
+    await syncUserWithBackend(data.access_token);
 
     return data;
   } catch (error) {

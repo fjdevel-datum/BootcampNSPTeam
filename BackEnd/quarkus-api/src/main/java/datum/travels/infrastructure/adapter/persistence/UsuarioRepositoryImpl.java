@@ -20,7 +20,21 @@ public class UsuarioRepositoryImpl implements PanacheRepository<Usuario>, Usuari
     }
 
     // Renombrado para evitar conflicto con PanacheRepository.findById()
+    @Override
     public Optional<Usuario> findByIdUsuario(Long idUsuario) {
         return findByIdOptional(idUsuario);
+    }
+
+    @Override
+    public Optional<Usuario> findByKeycloakId(String keycloakId) {
+        return find("keycloakId", keycloakId).firstResultOptional();
+    }
+
+    // persist() ya está heredado de PanacheRepository, 
+    // pero lo declaramos explícitamente para cumplir con la interface
+    @Override
+    public void persist(Usuario usuario) {
+        // Llama al método persist() de Panache
+        PanacheRepository.super.persist(usuario);
     }
 }

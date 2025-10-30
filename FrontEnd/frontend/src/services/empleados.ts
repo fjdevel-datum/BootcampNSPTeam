@@ -3,7 +3,7 @@
  */
 
 import { getValidAccessToken } from "./authService";
-import type { CrearEmpleadoPayload, EmpleadoResponse } from "../types/empleado";
+import type { CrearEmpleadoPayload, EmpleadoResponse, UsuarioAdmin } from "../types/empleado";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8081";
 
@@ -45,4 +45,27 @@ export async function crearEmpleado(payload: CrearEmpleadoPayload): Promise<Empl
 
   const data: EmpleadoResponse = await response.json();
   return data;
+}
+
+export async function listarEmpleados(): Promise<UsuarioAdmin[]> {
+  const token = await getValidAccessToken();
+
+  if (!token) {
+    throw new Error("No hay sesion activa. Por favor inicia sesion.");
+  }
+
+  const response = await fetch(`${API_BASE_URL}/api/empleados`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(message || "No se pudo obtener el listado de empleados.");
+  }
+
+  return response.json();
 }

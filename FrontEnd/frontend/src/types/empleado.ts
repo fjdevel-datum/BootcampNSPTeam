@@ -26,3 +26,17 @@ export interface CrearEmpleadoPayload {
   usuario: string;
   contrasena: string;
 }
+
+export interface UsuarioAdmin {
+  idUsuario: number;
+  idEmpleado: number | null;
+  usuarioApp: string;
+  correo: string | null;
+  nombre: string | null;
+  apellido: string | null;
+  telefono: string | null;
+  cargo: string | null;
+  departamento: string | null;
+  empresa: string | null;
+  totalTarjetas: number;
+}

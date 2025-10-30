@@ -5,6 +5,7 @@ import datum.travels.domain.repository.UsuarioRepository;
 import io.quarkus.hibernate.orm.panache.PanacheRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -19,7 +20,6 @@ public class UsuarioRepositoryImpl implements PanacheRepository<Usuario>, Usuari
         return find("usuarioApp", usuarioApp).firstResultOptional();
     }
 
-    // Renombrado para evitar conflicto con PanacheRepository.findById()
     @Override
     public Optional<Usuario> findByIdUsuario(Long idUsuario) {
         return findByIdOptional(idUsuario);
@@ -30,11 +30,18 @@ public class UsuarioRepositoryImpl implements PanacheRepository<Usuario>, Usuari
         return find("keycloakId", keycloakId).firstResultOptional();
     }
 
-    // persist() ya está heredado de PanacheRepository, 
-    // pero lo declaramos explícitamente para cumplir con la interface
     @Override
     public void persist(Usuario usuario) {
-        // Llama al método persist() de Panache
         PanacheRepository.super.persist(usuario);
+    }
+
+    @Override
+    public List<Usuario> findAllUsuarios() {
+        return find("select distinct u from Usuario u " +
+                "left join fetch u.empleado e " +
+                "left join fetch e.cargo " +
+                "left join fetch e.departamento " +
+                "left join fetch e.empresa")
+            .list();
     }
 }

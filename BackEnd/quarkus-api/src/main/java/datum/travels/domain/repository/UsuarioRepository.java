@@ -2,6 +2,7 @@ package datum.travels.domain.repository;
 
 import datum.travels.domain.model.Usuario;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -40,4 +41,11 @@ public interface UsuarioRepository {
      * @param usuario Usuario a persistir
      */
     void persist(Usuario usuario);
+
+    /**
+     * Lista todos los usuarios registrados.
+     *
+     * @return lista de usuarios
+     */
+    List<Usuario> findAllUsuarios();
 }

@@ -2,7 +2,9 @@ package datum.travels.infrastructure.adapter.rest;
 
 import datum.travels.application.dto.empleado.CrearEmpleadoRequest;
 import datum.travels.application.dto.empleado.EmpleadoCreadoResponse;
+import datum.travels.application.dto.empleado.UsuarioAdminResponse;
 import datum.travels.application.usecase.empleado.CrearEmpleadoConUsuarioUseCase;
+import datum.travels.application.usecase.empleado.ListarUsuariosAdminUseCase;
 import datum.travels.shared.exception.BusinessException;
 import datum.travels.shared.exception.KeycloakIntegrationException;
 import io.quarkus.security.Authenticated;
@@ -10,6 +12,7 @@ import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
@@ -23,6 +26,8 @@ import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
+import java.util.List;
+
 /**
  * Endpoints de gestión de empleados.
  */
@@ -35,6 +40,22 @@ public class EmpleadoController {
 
     @Inject
     CrearEmpleadoConUsuarioUseCase crearEmpleadoConUsuarioUseCase;
+
+    @Inject
+    ListarUsuariosAdminUseCase listarUsuariosAdminUseCase;
+
+    @GET
+    @RolesAllowed({"admin", "administrador"})
+    @Operation(summary = "Listar empleados", description = "Obtiene todos los empleados registrados")
+    @APIResponses(value = {
+        @APIResponse(responseCode = "200", description = "Listado de empleados", content = @Content(
+            schema = @Schema(implementation = UsuarioAdminResponse.class)
+        ))
+    })
+    public Response listar() {
+        List<UsuarioAdminResponse> usuarios = listarUsuariosAdminUseCase.execute();
+        return Response.ok(usuarios).build();
+    }
 
     @POST
     @RolesAllowed({"admin", "administrador"})

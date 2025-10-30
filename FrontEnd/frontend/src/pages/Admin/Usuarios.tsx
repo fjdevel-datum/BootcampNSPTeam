@@ -1,4 +1,4 @@
-import { ArrowLeft, Search, Mail, Phone, User, Briefcase, CreditCard } from "lucide-react";
+import { ArrowLeft, Search, Mail, Phone, User, Briefcase, CreditCard, UserPlus } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -78,7 +78,13 @@ export default function AdminUsuarios() {
 
           <h1 className="text-xl font-bold text-white">Gestión de Usuarios</h1>
 
-          <div className="w-40"></div>
+          <button
+            onClick={() => navigate("/admin/usuarios/nuevo")}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition"
+          >
+            <UserPlus className="h-4 w-4" />
+            <span>Nuevo usuario</span>
+          </button>
         </div>
       </header>
 

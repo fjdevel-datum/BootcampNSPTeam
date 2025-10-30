@@ -56,3 +56,24 @@ If you want to learn more about building native executables, please consult <htt
 ## Related Guides
 
 - REST Jackson ([guide](https://quarkus.io/guides/rest#json-serialisation)): Jackson serialization support for Quarkus REST. This extension is not compatible with the quarkus-resteasy extension, or any of the extensions that depend on it
+
+## Development environment variables
+
+This service needs to call the Keycloak Admin API to create users. Configure the credentials in a `.env`
+file (Quarkus loads it automatically in dev/test).
+
+Steps:
+
+1. Copy `.env.example` to `.env`:
+   ```shell
+   cp .env.example .env
+   ```
+   On Windows PowerShell:
+   ```powershell
+   Copy-Item .env.example .env
+   ```
+2. Fill `KEYCLOAK_ADMIN_USERNAME` and `KEYCLOAK_ADMIN_PASSWORD` with the credentials of a user that has the
+   `realm-management` → `manage-users` role inside your realm.
+3. Start the application with `./mvnw quarkus:dev`.
+
+> Note: `.env` is ignored by Git, so each developer can keep their own credentials locally.

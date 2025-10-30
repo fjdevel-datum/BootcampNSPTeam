@@ -89,6 +89,27 @@ services:
     networks:
       - datum-network
 
+  openkm-bootstrap:
+    image: gvenzl/oracle-xe:21-slim
+    container_name: datum-openkm-bootstrap
+    restart: "no"
+    depends_on:
+      openkm-db:
+        condition: service_healthy
+      openkm:
+        condition: service_started
+    networks:
+      - datum-network
+    volumes:
+      - ./ocr-quarkus/openkm/db-init/bootstrap-openkm.sql:/scripts/bootstrap-openkm.sql:ro
+    entrypoint: ["/bin/bash", "-lc"]
+    command: |
+      until echo "select 1 from okm_user;" | sqlplus -S OKM/okm@openkm-db:1521/XEPDB1 > /dev/null 2>&1; do
+        echo "Waiting for OpenKM schema..."
+        sleep 10
+      done
+      sqlplus -S OKM/okm@openkm-db:1521/XEPDB1 @/scripts/bootstrap-openkm.sql
+
   # ═══════════════════════════════════════════════════════════════════════
   # Keycloak - Servidor de Autenticación y Autorización
   # ═══════════════════════════════════════════════════════════════════════

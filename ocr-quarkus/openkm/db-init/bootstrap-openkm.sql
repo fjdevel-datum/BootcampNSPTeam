@@ -1,4 +1,4 @@
--- Ensures the default OpenKM admin user and required roles exist.
+ -- Ensures the default OpenKM admin user and required roles exist.
 WHENEVER SQLERROR EXIT SQL.SQLCODE
 SET SERVEROUTPUT ON
 

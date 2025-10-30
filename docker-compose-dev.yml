@@ -102,13 +102,8 @@ services:
       - datum-network
     volumes:
       - ./ocr-quarkus/openkm/db-init/bootstrap-openkm.sql:/scripts/bootstrap-openkm.sql:ro
-    entrypoint: ["/bin/bash", "-lc"]
-    command: |
-      until echo "select 1 from okm_user;" | sqlplus -S OKM/okm@openkm-db:1521/XEPDB1 > /dev/null 2>&1; do
-        echo "Waiting for OpenKM schema..."
-        sleep 10
-      done
-      sqlplus -S OKM/okm@openkm-db:1521/XEPDB1 @/scripts/bootstrap-openkm.sql
+      - ./ocr-quarkus/openkm/db-init/bootstrap-openkm.sh:/scripts/bootstrap-openkm.sh:ro
+    entrypoint: ["/bin/bash", "/scripts/bootstrap-openkm.sh"]
 
   # ═══════════════════════════════════════════════════════════════════════
   # Keycloak - Servidor de Autenticación y Autorización

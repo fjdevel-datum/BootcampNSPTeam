@@ -1,8 +1,8 @@
-import { ArrowLeft, CreditCard, Plus, Trash2, UserPlus } from "lucide-react";
+import { ArrowLeft, CreditCard, Plus, Trash2, UserPlus, X, AlertTriangle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { listarTarjetas, eliminarTarjeta } from "../../services/tarjetas";
-import { getTipoTarjeta, getNombreCompletoEmpleado } from "../../types/tarjeta";
+import { getTipoTarjeta, getNombreCompletoEmpleado, formatearNumeroTarjeta } from "../../types/tarjeta";
 
 interface TarjetaEmpresa {
   id: number;
@@ -37,6 +37,11 @@ export default function AdminTarjetas() {
   const [filterAsignadas, setFilterAsignadas] = useState<"todas" | "asignadas" | "disponibles">("todas");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Modal de confirmación de eliminación
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [tarjetaAEliminar, setTarjetaAEliminar] = useState<TarjetaEmpresa | null>(null);
+  const [eliminando, setEliminando] = useState(false);
 
   // Cargar tarjetas desde el backend
   useEffect(() => {
@@ -82,31 +87,46 @@ export default function AdminTarjetas() {
   };
 
   const handleDeleteCard = async (id: number) => {
-    if (!confirm("¿Estás seguro de eliminar esta tarjeta?")) {
-      return;
-    }
+    const tarjeta = tarjetas.find((t) => t.id === id);
+    if (!tarjeta) return;
+    
+    setTarjetaAEliminar(tarjeta);
+    setShowDeleteModal(true);
+  };
+
+  const confirmarEliminacion = async () => {
+    if (!tarjetaAEliminar) return;
 
     try {
-      await eliminarTarjeta(id);
-      // Recargar tarjetas después de eliminar
+      setEliminando(true);
+      await eliminarTarjeta(tarjetaAEliminar.id);
       await cargarTarjetas();
+      setShowDeleteModal(false);
+      setTarjetaAEliminar(null);
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : "Error al eliminar tarjeta";
       alert(errorMsg);
       console.error("Error eliminando tarjeta:", err);
+    } finally {
+      setEliminando(false);
     }
   };
 
+  const cancelarEliminacion = () => {
+    setShowDeleteModal(false);
+    setTarjetaAEliminar(null);
+  };
+
   const filteredTarjetas = tarjetas.filter((tarjeta) => {
-    if (filterAsignadas === "asignadas") return tarjeta.asignadoA !== null;
-    if (filterAsignadas === "disponibles") return tarjeta.asignadoA === null;
+    if (filterAsignadas === "asignadas") return tarjeta.asignadoA !== null && tarjeta.asignadoA !== "Sin asignar";
+    if (filterAsignadas === "disponibles") return tarjeta.asignadoA === null || tarjeta.asignadoA === "Sin asignar";
     return true;
   });
 
   const stats = {
     total: tarjetas.length,
-    asignadas: tarjetas.filter((t) => t.asignadoA !== null).length,
-    disponibles: tarjetas.filter((t) => t.asignadoA === null).length,
+    asignadas: tarjetas.filter((t) => t.asignadoA !== null && t.asignadoA !== "Sin asignar").length,
+    disponibles: tarjetas.filter((t) => t.asignadoA === null || t.asignadoA === "Sin asignar").length,
   };
 
   return (
@@ -288,7 +308,7 @@ export default function AdminTarjetas() {
 
                   {/* Número */}
                   <div className="mb-4">
-                    <p className="text-xl font-mono tracking-wider">{tarjeta.numero}</p>
+                    <p className="text-xl font-mono tracking-wider">{formatearNumeroTarjeta(tarjeta.numero)}</p>
                   </div>
 
                   {/* Footer */}
@@ -325,6 +345,90 @@ export default function AdminTarjetas() {
           )}
         </div>
       </div>
+
+      {/* Modal de Confirmación de Eliminación */}
+      {showDeleteModal && tarjetaAEliminar && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 relative">
+            {/* Header */}
+            <div className="flex items-start gap-4 mb-6">
+              <div className="h-12 w-12 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <X className="h-6 w-6 text-red-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-xl font-bold text-slate-900 mb-1">
+                  Eliminar Tarjeta
+                </h3>
+                <p className="text-sm text-slate-600">
+                  Esta acción no se puede deshacer
+                </p>
+              </div>
+            </div>
+
+            {/* Información de la tarjeta */}
+            <div className="bg-slate-50 rounded-xl p-4 mb-6">
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Número:</span>
+                  <span className="font-mono font-medium text-slate-900">
+                    {formatearNumeroTarjeta(tarjetaAEliminar.numero)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Banco:</span>
+                  <span className="font-medium text-slate-900">
+                    {tarjetaAEliminar.banco}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Asignada a:</span>
+                  <span className="font-medium text-slate-900">
+                    {tarjetaAEliminar.asignadoA || "Sin asignar"}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Advertencia */}
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-6">
+              <p className="text-sm text-amber-800 flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                <span>
+                  Al eliminar esta tarjeta, se perderá toda la información asociada.
+                </span>
+              </p>
+            </div>
+
+            {/* Botones */}
+            <div className="flex gap-3">
+              <button
+                onClick={cancelarEliminacion}
+                disabled={eliminando}
+                className="flex-1 px-4 py-2.5 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmarEliminacion}
+                disabled={eliminando}
+                className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
+              >
+                {eliminando ? (
+                  <>
+                    <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Eliminando...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4" />
+                    Eliminar
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

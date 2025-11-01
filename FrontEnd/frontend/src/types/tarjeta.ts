@@ -33,24 +33,22 @@ export interface AsignarTarjetaRequest {
 }
 
 // Helper para determinar el tipo de tarjeta basado en el número
-export function getTipoTarjeta(numeroTarjeta: string): "visa" | "mastercard" | "amex" | "other" {
-  const numero = numeroTarjeta.replace(/\s/g, "");
+export function getTipoTarjeta(numeroTarjeta: string): "visa" | "mastercard" | "other" {
+  const numero = numeroTarjeta.replace(/[-\s]/g, "");
   
   if (numero.startsWith("4")) {
     return "visa";
   } else if (/^5[1-5]/.test(numero)) {
     return "mastercard";
-  } else if (/^3[47]/.test(numero)) {
-    return "amex";
   }
   
   return "other";
 }
 
-// Helper para formatear número de tarjeta (agregar espacios)
+// Helper para formatear número de tarjeta (agregar guiones cada 4 dígitos)
 export function formatearNumeroTarjeta(numero: string): string {
-  const limpio = numero.replace(/\s/g, "");
-  return limpio.replace(/(.{4})/g, "$1 ").trim();
+  const limpio = numero.replace(/[-\s]/g, "");
+  return limpio.replace(/(.{4})/g, "$1-").replace(/-$/, "");
 }
 
 // Helper para obtener nombre completo del empleado

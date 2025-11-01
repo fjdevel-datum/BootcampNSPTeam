@@ -65,10 +65,10 @@ export default function AdminNuevaTarjeta() {
   const handleChange = (field: FormField) => (event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     let value = event.target.value;
     
-    // Formatear número de tarjeta automáticamente
+    // Formatear número de tarjeta automáticamente (solo dígitos, máximo 16)
     if (field === "numeroTarjeta") {
       value = value.replace(/\D/g, ""); // Solo números
-      if (value.length > 19) value = value.slice(0, 19);
+      if (value.length > 16) value = value.slice(0, 16); // Máximo 16 dígitos
     }
     
     setForm((prev) => ({
@@ -90,8 +90,8 @@ export default function AdminNuevaTarjeta() {
 
     if (!form.numeroTarjeta.trim()) {
       newErrors.numeroTarjeta = "El número de tarjeta es requerido.";
-    } else if (form.numeroTarjeta.replace(/\s/g, "").length < 15) {
-      newErrors.numeroTarjeta = "El número debe tener al menos 15 dígitos.";
+    } else if (form.numeroTarjeta.length !== 16) {
+      newErrors.numeroTarjeta = "El número debe tener exactamente 16 dígitos.";
     }
 
     if (!form.fechaExpiracion) {
@@ -126,7 +126,7 @@ export default function AdminNuevaTarjeta() {
     try {
       await crearTarjeta({
         banco: form.banco.trim(),
-        numeroTarjeta: form.numeroTarjeta.replace(/\s/g, ""),
+        numeroTarjeta: form.numeroTarjeta, // Ya está sin guiones, solo 16 dígitos
         fechaExpiracion: form.fechaExpiracion,
         idPais: Number(form.idPais),
         idEmpleado: form.idEmpleado ? Number(form.idEmpleado) : null,
@@ -163,11 +163,10 @@ export default function AdminNuevaTarjeta() {
       })()
     : "MM/YY";
 
-  // Color basado en tipo de tarjeta
+  // Color basado en tipo de tarjeta (solo VISA y Mastercard)
   const colorClass = {
     visa: "from-blue-600 to-blue-800",
     mastercard: "from-slate-700 to-slate-900",
-    amex: "from-emerald-600 to-emerald-800",
     other: "from-purple-600 to-purple-800",
   }[tipoTarjeta];
 
@@ -260,13 +259,13 @@ export default function AdminNuevaTarjeta() {
                     value={form.numeroTarjeta}
                     onChange={handleChange("numeroTarjeta")}
                     placeholder="1234567890123456"
-                    maxLength={19}
+                    maxLength={16}
                     className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono ${
                       errors.numeroTarjeta ? "border-red-500" : "border-slate-300"
                     }`}
                   />
                   {errors.numeroTarjeta && <p className="mt-1 text-sm text-red-600">{errors.numeroTarjeta}</p>}
-                  <p className="mt-1 text-xs text-slate-500">Solo números (15-19 dígitos)</p>
+                  <p className="mt-1 text-xs text-slate-500">Exactamente 16 dígitos</p>
                 </div>
 
                 {/* Fecha de Expiración */}

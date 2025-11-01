@@ -25,6 +25,7 @@ interface LocationState {
   imageType: "camera" | "file";
   fileName?: string;
   sourceFile: File;
+  idEvento?: number;
 }
 
 const DEFAULT_FORM: GastoFormData = {
@@ -61,9 +62,9 @@ export default function GastoForm({
   const imageType = isRouteMode ? locationState!.imageType : propImageType!;
   const fileName = isRouteMode ? locationState?.fileName : propFileName;
   const sourceFile = isRouteMode ? locationState!.sourceFile : propSourceFile!;
+  const eventId = isRouteMode ? locationState?.idEvento : undefined;
   
   const [formData, setFormData] = useState<GastoFormData>(DEFAULT_FORM);
-  const [llmJson, setLlmJson] = useState<string>("");
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(true);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -134,7 +135,6 @@ export default function GastoForm({
 
         const parsed = parseLlmResponse(analysis.llmResponse);
         setFormData(parsed.formData);
-        setLlmJson(parsed.cleanedJsonString);
         if (parsed.error) {
           setWarning(parsed.error);
         }
@@ -214,17 +214,23 @@ export default function GastoForm({
     setIsSaving(true);
 
     try {
+      if (!eventId) {
+        throw new Error("No se pudo determinar el evento asociado al gasto.");
+      }
+
       const payload = buildPayloadFromFormData(sanitized);
-      const saved = await saveGastoFromLlm(payload);
+      const payloadWithMetadata = {
+        ...payload,
+        IdEvento: eventId,
+      };
+      const saved = await saveGastoFromLlm(payloadWithMetadata);
       const gastoId = saved.id ?? saved.idGasto ?? saved.id_gasto;
       if (!gastoId) {
         throw new Error("El backend no devolvio un identificador valido del gasto.");
       }
 
       await uploadGastoFile(gastoId, sourceFile);
-      const updatedJson = JSON.stringify(payload);
-      setLlmJson(updatedJson);
-
+      const updatedJson = JSON.stringify(payloadWithMetadata);
       handleSaveSuccess({ formData: sanitized, gastoId, llmJson: updatedJson });
     } catch (err) {
       const message =

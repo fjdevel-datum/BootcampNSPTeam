@@ -20,7 +20,6 @@ import java.time.LocalDate;
  * @param lugar - Lugar donde se realizó
  * @param fecha - Fecha del gasto
  * @param monto - Monto del gasto
- * @param capturaComprobante - Ruta de la imagen del comprobante
  */
 public record GastoResponse(
     Long idGasto,
@@ -33,8 +32,7 @@ public record GastoResponse(
     String descripcion,
     String lugar,
     LocalDate fecha,
-    BigDecimal monto,
-    String capturaComprobante
+    BigDecimal monto
 ) {
     
     /**
@@ -52,8 +50,7 @@ public record GastoResponse(
             gasto.descripcion,
             gasto.lugar,
             gasto.fecha,
-            gasto.monto,
-            gasto.capturaComprobante
+            gasto.monto
         );
     }
 }

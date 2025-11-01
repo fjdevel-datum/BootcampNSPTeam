@@ -1,4 +1,5 @@
 import type { GastoFormData } from "../types/gasto";
+import { getValidAccessToken } from "./authService";
 
 const DEFAULT_BACKEND_PREFIX = "/api";
 const backendBaseUrl = (() => {
@@ -57,8 +58,16 @@ export async function analyzeExpenseImage(file: File): Promise<OcrAnalysisRespon
   form.append("filename", file.name || DEFAULT_FILE_NAME);
   form.append("contentType", file.type || "application/octet-stream");
 
+  const token = await getValidAccessToken();
+  if (!token) {
+    throw new Error("Sesión expirada. Vuelve a iniciar sesión para procesar la imagen.");
+  }
+
   const response = await fetch(resolveBackendPath("/ocr"), {
     method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
     body: form,
   });
 
@@ -76,10 +85,16 @@ export async function analyzeExpenseImage(file: File): Promise<OcrAnalysisRespon
  * Send the LLM JSON payload to persist the gasto in the backend.
  */
 export async function saveGastoFromLlm(payload: Record<string, unknown>) {
+  const token = await getValidAccessToken();
+  if (!token) {
+    throw new Error("Sesión expirada. Vuelve a iniciar sesión para guardar el gasto.");
+  }
+
   const response = await fetch(resolveBackendPath("/gastos/llm"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify(payload),
   });
@@ -103,8 +118,16 @@ export async function uploadGastoFile(gastoId: number, file: File) {
   form.append("filename", file.name || DEFAULT_FILE_NAME);
   form.append("contentType", file.type || "application/octet-stream");
 
+  const token = await getValidAccessToken();
+  if (!token) {
+    throw new Error("Sesión expirada. Vuelve a iniciar sesión para adjuntar el archivo.");
+  }
+
   const response = await fetch(resolveBackendPath(`/gastos/${gastoId}/archivo`), {
     method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
     body: form,
   });
 

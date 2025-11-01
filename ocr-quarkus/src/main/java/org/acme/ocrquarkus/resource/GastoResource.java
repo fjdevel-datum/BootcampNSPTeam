@@ -23,6 +23,7 @@ import org.acme.ocrquarkus.entity.Gasto;
 import org.acme.ocrquarkus.repository.GastoRepository;
 import org.acme.ocrquarkus.service.GastoService;
 import org.jboss.resteasy.annotations.providers.multipart.MultipartForm;
+import org.eclipse.microprofile.jwt.JsonWebToken;
 
 @Path("/api/gastos")
 @Produces(MediaType.APPLICATION_JSON)
@@ -34,6 +35,9 @@ public class GastoResource {
 
     @Inject
     GastoRepository gastoRepository;
+
+    @Inject
+    JsonWebToken jwt;
 
     @GET
     public Response list() {
@@ -48,6 +52,8 @@ public class GastoResource {
                 m.put("lugar", g.lugar);
                 m.put("fecha", g.fecha != null ? g.fecha.toString() : null);
                 m.put("monto", g.monto);
+                m.put("idEvento", g.idEvento);
+                m.put("idTarjeta", g.idTarjeta);
                 m.put("openkmDocUuid", g.getOpenkmDocUuid());
                 String readUrl = null;
                 try {
@@ -101,7 +107,7 @@ public class GastoResource {
                     ? "application/octet-stream"
                     : form.contentType;
 
-            Gasto g = gastoService.attachFile(id, form.file, filename, ct);
+            Gasto g = gastoService.attachFile(id, form.file, filename, ct, resolveCurrentUserName());
 
             return Response.ok(Map.of(
                     "id", g.idGasto,
@@ -166,6 +172,17 @@ public class GastoResource {
                     .entity("Error generando URL temporal: " + e.getMessage())
                     .build();
         }
+    }
+
+    private String resolveCurrentUserName() {
+        if (jwt == null) {
+            return null;
+        }
+        String name = jwt.getClaim("name");
+        if (name == null || name.isBlank()) {
+            name = jwt.getName();
+        }
+        return name;
     }
 }
 

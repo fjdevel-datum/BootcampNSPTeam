@@ -80,7 +80,6 @@ public class CrearGastoUseCase {
         gasto.lugar = request.lugar();
         gasto.fecha = request.fecha();
         gasto.monto = request.monto();
-        gasto.capturaComprobante = request.capturaComprobante();
 
         // 5. Persistir
         Gasto gastoCreado = gastoRepository.save(gasto);

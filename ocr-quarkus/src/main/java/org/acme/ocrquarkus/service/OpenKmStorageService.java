@@ -46,7 +46,7 @@ public class OpenKmStorageService {
     public OpenKmStorageService(
             @ConfigProperty(name = "openkm.enabled", defaultValue = "false") boolean enabled,
             @ConfigProperty(name = "openkm.fail-on-error", defaultValue = "true") boolean failOnError,
-            @ConfigProperty(name = "openkm.webdav-url", defaultValue = "http://localhost:8081/webdav/") String webDavUrl,
+            @ConfigProperty(name = "openkm.webdav-url", defaultValue = "http://localhost:8087/OpenKM/webdav/") String webDavUrl,
             @ConfigProperty(name = "openkm.collection-root", defaultValue = "okm:root/gastos") String collectionRoot,
             @ConfigProperty(name = "openkm.username", defaultValue = "okmAdmin") String username,
             @ConfigProperty(name = "openkm.password", defaultValue = "admin") String password,
@@ -75,19 +75,24 @@ public class OpenKmStorageService {
     }
 
     /**
-     * Replica el archivo en OpenKM bajo la ruta configurada (gastos/{gastoId}/archivo).
+     * Replica el archivo en OpenKM bajo la ruta configurada (gastos/{usuario}/{anio}/{mes}/archivo).
      * @return Ruta relativa dentro de OpenKM si se sube correctamente.
      */
-    public Optional<String> store(Long gastoId, String originalFileName, byte[] contents, String contentType) {
+    public Optional<String> store(Long gastoId, String storedFileName, byte[] contents, String contentType, String userFolder, String[] dateSegments) {
         if (!enabled) {
             return Optional.empty();
         }
 
-        String safeName = sanitizeFileName(originalFileName);
+        String safeName = sanitizeFileName(storedFileName);
         List<String> folder = new ArrayList<>(rootSegments);
-        folder.add(String.valueOf(gastoId));
+        folder.add(sanitizeFolderName(userFolder, "sin-usuario"));
+        if (dateSegments != null) {
+            for (String segment : dateSegments) {
+                folder.add(sanitizeFolderName(segment, "sin-fecha"));
+            }
+        }
         List<String> document = new ArrayList<>(folder);
-        document.add(safeName);
+        document.add(ensureFileNameHasIdPrefix(gastoId, safeName));
 
         try {
             ensureCollections(folder);
@@ -265,14 +270,43 @@ public class OpenKmStorageService {
     }
 
     private String sanitizeFileName(String original) {
+        String fallback = "archivo-" + UUID.randomUUID();
         if (original == null || original.isBlank()) {
-            return "archivo-" + UUID.randomUUID();
+            return fallback;
         }
-        return original.replace("/", "_").replace("\\", "_").trim();
+        String sanitized = original.trim()
+                .replace("\\", "-")
+                .replace("/", "-")
+                .replaceAll("[:*?\"<>|]+", "")
+                .replaceAll("\\s{2,}", " ");
+        return sanitized.isEmpty() ? fallback : sanitized;
+    }
+
+    private String sanitizeFolderName(String rawSegment, String fallback) {
+        if (rawSegment == null) {
+            return fallback;
+        }
+        String sanitized = rawSegment.trim();
+        if (sanitized.isEmpty()) {
+            return fallback;
+        }
+        sanitized = sanitized
+                .replace("\\", "-")
+                .replace("/", "-")
+                .replaceAll("[:*?\"<>|]+", "")
+                .replaceAll("\\s{2,}", " ");
+        return sanitized.isEmpty() ? fallback : sanitized;
+    }
+
+    private String ensureFileNameHasIdPrefix(Long gastoId, String fileName) {
+        if (gastoId == null) {
+            return fileName;
+        }
+        String prefix = gastoId + "-";
+        return fileName.startsWith(prefix) ? fileName : prefix + fileName;
     }
 
     private String normalizeContentType(String contentType) {
         return (contentType == null || contentType.isBlank()) ? "application/octet-stream" : contentType;
     }
 }
-

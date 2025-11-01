@@ -8,4 +8,3 @@ import org.acme.ocrquarkus.entity.Gasto;
 public class GastoRepository implements PanacheRepository<Gasto> {
     // Los métodos básicos de CRUD son heredados de PanacheRepository
 }
-

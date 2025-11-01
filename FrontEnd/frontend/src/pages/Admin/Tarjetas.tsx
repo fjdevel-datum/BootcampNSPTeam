@@ -1,75 +1,99 @@
 import { ArrowLeft, CreditCard, Plus, Trash2, UserPlus } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { listarTarjetas, eliminarTarjeta } from "../../services/tarjetas";
+import { getTipoTarjeta, getNombreCompletoEmpleado } from "../../types/tarjeta";
 
 interface TarjetaEmpresa {
-  id: string;
+  id: number;
   numero: string;
-  tipo: "visa" | "mastercard" | "amex";
+  tipo: "visa" | "mastercard" | "amex" | "other";
   vencimiento: string;
+  banco: string;
   asignadoA: string | null;
   colorClass: string;
+  idPais: number;
+  nombrePais: string;
 }
 
-const tarjetasMock: TarjetaEmpresa[] = [
-  {
-    id: "1",
-    numero: "4532 1234 5678 9010",
-    tipo: "visa",
-    vencimiento: "12/26",
-    asignadoA: "Ann Lee",
-    colorClass: "from-blue-600 to-blue-800",
-  },
-  {
-    id: "2",
-    numero: "5425 2334 3010 9903",
-    tipo: "mastercard",
-    vencimiento: "08/27",
-    asignadoA: "Ann Lee",
-    colorClass: "from-slate-700 to-slate-900",
-  },
-  {
-    id: "3",
-    numero: "3782 822463 10005",
-    tipo: "amex",
-    vencimiento: "03/28",
-    asignadoA: "Juan Pérez",
-    colorClass: "from-emerald-600 to-emerald-800",
-  },
-  {
-    id: "4",
-    numero: "4916 7890 1234 5678",
-    tipo: "visa",
-    vencimiento: "11/27",
-    asignadoA: null,
-    colorClass: "from-purple-600 to-purple-800",
-  },
-  {
-    id: "5",
-    numero: "5123 4567 8901 2345",
-    tipo: "mastercard",
-    vencimiento: "05/29",
-    asignadoA: null,
-    colorClass: "from-orange-600 to-orange-800",
-  },
-  {
-    id: "6",
-    numero: "4111 1111 1111 1111",
-    tipo: "visa",
-    vencimiento: "09/26",
-    asignadoA: "Carlos Ramírez",
-    colorClass: "from-red-600 to-red-800",
-  },
-];
+// Función para generar colores aleatorios para las tarjetas
+function getRandomColorClass(): string {
+  const colors = [
+    "from-blue-600 to-blue-800",
+    "from-slate-700 to-slate-900",
+    "from-emerald-600 to-emerald-800",
+    "from-purple-600 to-purple-800",
+    "from-orange-600 to-orange-800",
+    "from-red-600 to-red-800",
+    "from-indigo-600 to-indigo-800",
+    "from-pink-600 to-pink-800",
+  ];
+  return colors[Math.floor(Math.random() * colors.length)];
+}
 
 export default function AdminTarjetas() {
   const navigate = useNavigate();
-  const [tarjetas, setTarjetas] = useState<TarjetaEmpresa[]>(tarjetasMock);
+  const [tarjetas, setTarjetas] = useState<TarjetaEmpresa[]>([]);
   const [filterAsignadas, setFilterAsignadas] = useState<"todas" | "asignadas" | "disponibles">("todas");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleDeleteCard = (id: string) => {
-    if (confirm("¿Estás seguro de eliminar esta tarjeta?")) {
-      setTarjetas((prev) => prev.filter((t) => t.id !== id));
+  // Cargar tarjetas desde el backend
+  useEffect(() => {
+    cargarTarjetas();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const cargarTarjetas = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const tarjetasBackend = await listarTarjetas();
+      
+      // Transformar datos del backend al formato del componente
+      const tarjetasTransformadas: TarjetaEmpresa[] = tarjetasBackend.map((t) => ({
+        id: t.idTarjeta,
+        numero: t.numeroTarjeta,
+        tipo: getTipoTarjeta(t.numeroTarjeta),
+        vencimiento: formatearFechaVencimiento(t.fechaExpiracion),
+        banco: t.banco,
+        asignadoA: getNombreCompletoEmpleado(t.empleado),
+        colorClass: getRandomColorClass(),
+        idPais: t.idPais,
+        nombrePais: t.nombrePais,
+      }));
+      
+      setTarjetas(tarjetasTransformadas);
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : "Error al cargar tarjetas";
+      setError(errorMsg);
+      console.error("Error cargando tarjetas:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Formatear fecha ISO a MM/YY
+  const formatearFechaVencimiento = (fechaISO: string): string => {
+    const fecha = new Date(fechaISO);
+    const mes = String(fecha.getMonth() + 1).padStart(2, "0");
+    const anio = String(fecha.getFullYear()).slice(-2);
+    return `${mes}/${anio}`;
+  };
+
+  const handleDeleteCard = async (id: number) => {
+    if (!confirm("¿Estás seguro de eliminar esta tarjeta?")) {
+      return;
+    }
+
+    try {
+      await eliminarTarjeta(id);
+      // Recargar tarjetas después de eliminar
+      await cargarTarjetas();
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : "Error al eliminar tarjeta";
+      alert(errorMsg);
+      console.error("Error eliminando tarjeta:", err);
     }
   };
 
@@ -113,8 +137,35 @@ export default function AdminTarjetas() {
       {/* Content */}
       <div className="px-6 py-8">
         <div className="max-w-7xl mx-auto">
-          {/* Stats */}
-          <div className="grid md:grid-cols-3 gap-6 mb-8">
+          {/* Error Alert */}
+          {error && (
+            <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl">
+              <p className="font-medium">Error</p>
+              <p className="text-sm">{error}</p>
+              <button
+                onClick={cargarTarjetas}
+                className="mt-2 text-sm underline hover:no-underline"
+              >
+                Reintentar
+              </button>
+            </div>
+          )}
+
+          {/* Loading State */}
+          {loading && (
+            <div className="flex items-center justify-center py-12">
+              <div className="text-center">
+                <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+                <p className="text-slate-600">Cargando tarjetas...</p>
+              </div>
+            </div>
+          )}
+
+          {/* Content when not loading */}
+          {!loading && (
+            <>
+              {/* Stats */}
+              <div className="grid md:grid-cols-3 gap-6 mb-8">
             <div className="bg-white rounded-xl p-6 shadow-lg">
               <div className="flex items-center justify-between">
                 <div>
@@ -264,11 +315,13 @@ export default function AdminTarjetas() {
             ))}
           </div>
 
-          {filteredTarjetas.length === 0 && (
+          {filteredTarjetas.length === 0 && !loading && !error && (
             <div className="text-center py-12">
               <CreditCard className="h-16 w-16 text-slate-300 mx-auto mb-4" />
               <p className="text-slate-500">No hay tarjetas con este filtro</p>
             </div>
+          )}
+            </>
           )}
         </div>
       </div>

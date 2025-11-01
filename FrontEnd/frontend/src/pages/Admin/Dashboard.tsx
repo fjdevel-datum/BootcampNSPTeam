@@ -1,12 +1,42 @@
 import { CreditCard, Users, Settings, LogOut, ChevronDown } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
+import { listarEmpleados } from "../../services/empleados";
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const { logout } = useAuth();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [usuariosCount, setUsuariosCount] = useState<number | null>(null);
+  const [usuariosError, setUsuariosError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+
+    const fetchUsuarios = async () => {
+      try {
+        const usuarios = await listarEmpleados();
+        if (active) {
+          setUsuariosCount(usuarios.length);
+          setUsuariosError(null);
+        }
+      } catch (error) {
+        console.error("[Dashboard] No se pudo obtener el total de usuarios:", error);
+        const message =
+          error instanceof Error && error.message ? error.message : "No disponible";
+        if (active) {
+          setUsuariosCount(null);
+          setUsuariosError(message);
+        }
+      }
+    };
+
+    fetchUsuarios();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const handleLogout = async () => {
     console.log('🚪 [Dashboard] Logout iniciado');
@@ -113,7 +143,12 @@ export default function AdminDashboard() {
                 <div className="h-12 w-12 bg-blue-100 rounded-xl flex items-center justify-center group-hover:bg-blue-200 transition">
                   <Users className="h-6 w-6 text-blue-600" />
                 </div>
-                <span className="text-2xl font-bold text-slate-900">12</span>
+                <span
+                  className="text-2xl font-bold text-slate-900"
+                  title={usuariosError ?? undefined}
+                >
+                  {usuariosCount ?? (usuariosError ? "N/A" : "...")}
+                </span>
               </div>
               <h3 className="text-lg font-semibold text-slate-900 mb-1">Usuarios</h3>
               <p className="text-sm text-slate-500">Gestionar empleados y perfiles</p>

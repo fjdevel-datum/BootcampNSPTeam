@@ -25,4 +25,9 @@ public class EmpleadoRepositoryImpl implements PanacheRepository<Empleado>, Empl
     public Optional<Empleado> findByCorreo(String correo) {
         return find("correo", correo).firstResultOptional();
     }
+    
+    @Override
+    public Optional<Empleado> buscarPorId(Long idEmpleado) {
+        return findByIdOptional(idEmpleado);
+    }
 }

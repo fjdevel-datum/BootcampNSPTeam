@@ -10,6 +10,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
+    strictPort: true, // Forzar puerto 5173, fallar si está ocupado
     proxy: {
       '/api': {
         target: backendTarget,

@@ -24,4 +24,12 @@ public interface EmpleadoRepository {
      * @return Optional con el empleado encontrado
      */
     Optional<Empleado> findByCorreo(String correo);
+    
+    /**
+     * Busca un empleado por su ID.
+     *
+     * @param idEmpleado ID del empleado
+     * @return Optional con el empleado encontrado
+     */
+    Optional<Empleado> buscarPorId(Long idEmpleado);
 }

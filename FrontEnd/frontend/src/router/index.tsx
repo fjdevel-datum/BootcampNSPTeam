@@ -12,6 +12,8 @@ import AdminUsuarios from "../pages/Admin/Usuarios";
 import AdminTarjetas from "../pages/Admin/Tarjetas";
 import AdminPerfil from "../pages/Admin/Perfil";
 import AdminNuevoUsuario from "../pages/Admin/NuevoUsuario";
+import AdminNuevaTarjeta from "../pages/Admin/NuevaTarjeta";
+import AdminAsignarTarjeta from "../pages/Admin/AsignarTarjeta";
 
 const router = createBrowserRouter([
   // Ruta pública - Login
@@ -99,6 +101,26 @@ const router = createBrowserRouter([
       <ProtectedRoute>
         <RoleGuard allowedRoles={['admin', 'administrador']}>
           <AdminTarjetas />
+        </RoleGuard>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/admin/tarjetas/nueva",
+    element: (
+      <ProtectedRoute>
+        <RoleGuard allowedRoles={['admin', 'administrador']}>
+          <AdminNuevaTarjeta />
+        </RoleGuard>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/admin/tarjetas/:idTarjeta/asignar",
+    element: (
+      <ProtectedRoute>
+        <RoleGuard allowedRoles={['admin', 'administrador']}>
+          <AdminAsignarTarjeta />
         </RoleGuard>
       </ProtectedRoute>
     ),

@@ -280,7 +280,7 @@ export default function AdminTarjetas() {
                     </div>
 
                     <div className="flex gap-2">
-                      {tarjeta.asignadoA === null && (
+                      {(tarjeta.asignadoA === null || tarjeta.asignadoA === "Sin asignar") && (
                         <button
                           onClick={() =>
                             navigate(`/admin/tarjetas/${tarjeta.id}/asignar`)
@@ -318,7 +318,7 @@ export default function AdminTarjetas() {
                       <p className="text-sm font-semibold">{tarjeta.vencimiento}</p>
                     </div>
                     <div className="text-right">
-                      {tarjeta.asignadoA ? (
+                      {tarjeta.asignadoA && tarjeta.asignadoA !== "Sin asignar" ? (
                         <>
                           <p className="text-xs opacity-70 mb-1">Asignada a</p>
                           <p className="text-sm font-semibold">{tarjeta.asignadoA}</p>

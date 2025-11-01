@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { listarEmpleados } from "../../services/empleados";
+import { listarTarjetas } from "../../services/tarjetas";
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -10,6 +11,8 @@ export default function AdminDashboard() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [usuariosCount, setUsuariosCount] = useState<number | null>(null);
   const [usuariosError, setUsuariosError] = useState<string | null>(null);
+  const [tarjetasCount, setTarjetasCount] = useState<number | null>(null);
+  const [tarjetasError, setTarjetasError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -32,7 +35,26 @@ export default function AdminDashboard() {
       }
     };
 
+    const fetchTarjetas = async () => {
+      try {
+        const tarjetas = await listarTarjetas();
+        if (active) {
+          setTarjetasCount(tarjetas.length);
+          setTarjetasError(null);
+        }
+      } catch (error) {
+        console.error("[Dashboard] No se pudo obtener el total de tarjetas:", error);
+        const message =
+          error instanceof Error && error.message ? error.message : "No disponible";
+        if (active) {
+          setTarjetasCount(null);
+          setTarjetasError(message);
+        }
+      }
+    };
+
     fetchUsuarios();
+    fetchTarjetas();
     return () => {
       active = false;
     };
@@ -163,7 +185,12 @@ export default function AdminDashboard() {
                 <div className="h-12 w-12 bg-orange-100 rounded-xl flex items-center justify-center group-hover:bg-orange-200 transition">
                   <CreditCard className="h-6 w-6 text-orange-600" />
                 </div>
-                <span className="text-2xl font-bold text-slate-900">8</span>
+                <span 
+                  className="text-2xl font-bold text-slate-900"
+                  title={tarjetasError ?? undefined}
+                >
+                  {tarjetasCount ?? (tarjetasError ? "N/A" : "...")}
+                </span>
               </div>
               <h3 className="text-lg font-semibold text-slate-900 mb-1">Tarjetas</h3>
               <p className="text-sm text-slate-500">Gestionar tarjetas corporativas</p>

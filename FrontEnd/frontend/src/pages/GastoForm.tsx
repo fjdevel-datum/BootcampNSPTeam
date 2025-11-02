@@ -63,7 +63,6 @@ export default function GastoForm({
   const sourceFile = isRouteMode ? locationState!.sourceFile : propSourceFile!;
   
   const [formData, setFormData] = useState<GastoFormData>(DEFAULT_FORM);
-  const [llmJson, setLlmJson] = useState<string>("");
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(true);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -134,7 +133,6 @@ export default function GastoForm({
 
         const parsed = parseLlmResponse(analysis.llmResponse);
         setFormData(parsed.formData);
-        setLlmJson(parsed.cleanedJsonString);
         if (parsed.error) {
           setWarning(parsed.error);
         }
@@ -223,7 +221,6 @@ export default function GastoForm({
 
       await uploadGastoFile(gastoId, sourceFile);
       const updatedJson = JSON.stringify(payload);
-      setLlmJson(updatedJson);
 
       handleSaveSuccess({ formData: sanitized, gastoId, llmJson: updatedJson });
     } catch (err) {

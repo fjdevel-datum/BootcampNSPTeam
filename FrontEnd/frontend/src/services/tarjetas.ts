@@ -34,6 +34,32 @@ export async function listarTarjetas(): Promise<Tarjeta[]> {
 }
 
 /**
+ * Obtiene las tarjetas asignadas al usuario autenticado.
+ */
+export async function obtenerMisTarjetas(): Promise<Tarjeta[]> {
+  const token = await getValidAccessToken();
+
+  if (!token) {
+    throw new Error("No hay sesión activa. Por favor inicia sesión.");
+  }
+
+  const response = await fetch(`${API_BASE_URL}/api/tarjetas/mis-tarjetas`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(message || "No se pudieron obtener tus tarjetas.");
+  }
+
+  return response.json();
+}
+
+/**
  * Crea una nueva tarjeta corporativa (solo para administradores).
  */
 export async function crearTarjeta(payload: TarjetaRequest): Promise<Tarjeta> {

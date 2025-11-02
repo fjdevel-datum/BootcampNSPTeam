@@ -7,6 +7,7 @@ import datum.travels.application.usecase.tarjeta.AsignarTarjetaUseCase;
 import datum.travels.application.usecase.tarjeta.CrearTarjetaUseCase;
 import datum.travels.application.usecase.tarjeta.EliminarTarjetaUseCase;
 import datum.travels.application.usecase.tarjeta.ListarTarjetasUseCase;
+import datum.travels.application.usecase.tarjeta.ObtenerTarjetasEmpleadoUseCase;
 import datum.travels.shared.exception.BusinessException;
 import io.quarkus.security.Authenticated;
 import jakarta.annotation.security.RolesAllowed;
@@ -46,6 +47,9 @@ public class TarjetaController {
     @Inject
     EliminarTarjetaUseCase eliminarTarjetaUseCase;
 
+    @Inject
+    ObtenerTarjetasEmpleadoUseCase obtenerTarjetasEmpleadoUseCase;
+
     @GET
     @RolesAllowed({"admin", "administrador", "usuario"})
     @Operation(summary = "Listar tarjetas", description = "Obtiene todas las tarjetas corporativas registradas")
@@ -57,6 +61,34 @@ public class TarjetaController {
     public Response listar() {
         List<TarjetaResponse> tarjetas = listarTarjetasUseCase.execute();
         return Response.ok(tarjetas).build();
+    }
+
+    @GET
+    @Path("/mis-tarjetas")
+    @RolesAllowed({"admin", "administrador", "usuario"})
+    @Operation(
+        summary = "Mis tarjetas", 
+        description = "Obtiene las tarjetas asignadas al empleado autenticado"
+    )
+    @APIResponses(value = {
+        @APIResponse(responseCode = "200", description = "Tarjetas del empleado", content = @Content(
+            schema = @Schema(implementation = TarjetaResponse.class)
+        )),
+        @APIResponse(responseCode = "400", description = "Usuario no identificado o empleado no encontrado")
+    })
+    public Response misTarjetas() {
+        try {
+            List<TarjetaResponse> tarjetas = obtenerTarjetasEmpleadoUseCase.execute();
+            return Response.ok(tarjetas).build();
+        } catch (BusinessException ex) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                .entity(new ErrorResponse(ex.getMessage()))
+                .build();
+        } catch (Exception ex) {
+            return Response.serverError()
+                .entity(new ErrorResponse("Error inesperado al obtener las tarjetas"))
+                .build();
+        }
     }
 
     @POST

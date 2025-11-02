@@ -16,7 +16,6 @@ import java.time.LocalDate;
  * @param lugar - Lugar donde se realizó el gasto
  * @param fecha - Fecha del gasto
  * @param monto - Monto del gasto
- * @param capturaComprobante - Ruta de la imagen del comprobante
  */
 public record CrearGastoRequest(
     
@@ -42,10 +41,6 @@ public record CrearGastoRequest(
     
     @NotNull(message = "El monto es obligatorio")
     @DecimalMin(value = "0.01", message = "El monto debe ser mayor a 0")
-    BigDecimal monto,
-    
-    @Size(max = 200, message = "La ruta del comprobante no puede exceder 200 caracteres")
-    String capturaComprobante
-    
+    BigDecimal monto
 ) {
 }

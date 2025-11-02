@@ -1,6 +1,7 @@
 package org.acme.ocrquarkus.entity;
 
 import jakarta.persistence.*;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Entity
@@ -11,6 +12,15 @@ public class Gasto {
     @Column(name = "id_gasto")
     public Long idGasto;
 
+    @Column(name = "id_evento")
+    public Long idEvento;
+
+    @Column(name = "id_tarjeta")
+    public Long idTarjeta;
+
+    @Column(name = "id_categoria")
+    public Long idCategoria;
+
     @Column(name = "descripcion", length = 50)
     public String descripcion;
 
@@ -20,11 +30,8 @@ public class Gasto {
     @Column(name = "fecha")
     public LocalDate fecha;
 
-    @Column(name = "monto")
-    public Double monto;
-
-    @Column(name = "id_categoria")
-    public Long idCategoria;
+    @Column(name = "monto", precision = 10, scale = 2)
+    public BigDecimal monto;
 
     // Nombre del blob dentro del contenedor (clave real en Azure)
     @Column(name = "blob_name", length = 300)
@@ -89,7 +96,7 @@ public class Gasto {
     public Gasto() {
     }
 
-    public Gasto(String descripcion, String lugar, LocalDate fecha, Double monto) {
+    public Gasto(String descripcion, String lugar, LocalDate fecha, BigDecimal monto) {
         this.descripcion = descripcion;
         this.lugar = lugar;
         this.fecha = fecha;
@@ -101,4 +108,3 @@ public class Gasto {
         this.openkmDocUuid = null;
     }
 }
-

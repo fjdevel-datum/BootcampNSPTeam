@@ -186,7 +186,11 @@ export default function HomePage() {
                   key={evento.idEvento} 
                   label={evento.nombreEvento} 
                   colorClass={palette[index % palette.length]}
-                  onClick={() => navigate(`/event/${encodeURIComponent(evento.nombreEvento)}`)}
+                  onClick={() =>
+                    navigate(`/event/${encodeURIComponent(evento.nombreEvento)}`, {
+                      state: { evento },
+                    })
+                  }
                   onDelete={() => setEventoAEliminar(evento)}
                   fechaRegistro={evento.fechaRegistro}
                   estado={evento.estado}

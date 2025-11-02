@@ -21,7 +21,6 @@ public class GastoResponseDTO {
     private String descripcion;
     private LocalDate fecha;
     private BigDecimal monto;
-    private String capturaComprobante; // URL o path de la imagen
     private boolean tieneComprobante; // Si ya subió la foto
 
     // Constructores
@@ -115,14 +114,6 @@ public class GastoResponseDTO {
 
     public void setMonto(BigDecimal monto) {
         this.monto = monto;
-    }
-
-    public String getCapturaComprobante() {
-        return capturaComprobante;
-    }
-
-    public void setCapturaComprobante(String capturaComprobante) {
-        this.capturaComprobante = capturaComprobante;
     }
 
     public boolean isTieneComprobante() {

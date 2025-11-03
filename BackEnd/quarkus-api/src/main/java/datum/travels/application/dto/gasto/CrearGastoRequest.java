@@ -6,7 +6,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 /**
- * DTO para registrar un nuevo gasto
+ * DTO para registrar un nuevo gasto con soporte multi-moneda
  * Se usa después de procesar el comprobante con OCR
  * 
  * @param idEvento - ID del evento al que pertenece el gasto
@@ -15,7 +15,8 @@ import java.time.LocalDate;
  * @param descripcion - Descripción del gasto
  * @param lugar - Lugar donde se realizó el gasto
  * @param fecha - Fecha del gasto
- * @param monto - Monto del gasto
+ * @param monto - Monto del gasto en la moneda original (ej: 34.25)
+ * @param moneda - Código ISO 4217 de la moneda (USD, GTQ, HNL, PAB, EUR)
  */
 public record CrearGastoRequest(
     
@@ -41,6 +42,11 @@ public record CrearGastoRequest(
     
     @NotNull(message = "El monto es obligatorio")
     @DecimalMin(value = "0.01", message = "El monto debe ser mayor a 0")
-    BigDecimal monto
+    BigDecimal monto,
+
+    @NotBlank(message = "El código de moneda es obligatorio")
+    @Pattern(regexp = "^(USD|GTQ|HNL|PAB|EUR)$", 
+    message = "Moneda no válida. Usar: USD, GTQ, HNL, ARS, EUR, BOB, BRL, CLP, COP, PYG, PEN, UYU, DOP, JMD, CAD, MXN, BZD, CRC, NIO, PAB")
+    String moneda
 ) {
 }

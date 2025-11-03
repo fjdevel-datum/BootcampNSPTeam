@@ -19,7 +19,11 @@ import java.time.LocalDate;
  * @param descripcion - Descripción del gasto
  * @param lugar - Lugar donde se realizó
  * @param fecha - Fecha del gasto
- * @param monto - Monto del gasto
+ * @param monto - Monto ORIGINAL de la factura (en la moneda especificada)
+ * @param moneda - Código ISO 4217 de la moneda
+ * @param montoUsd - Monto convertido a USD
+ * @param tasaCambio - Tasa de cambio aplicada
+ * @param fechaTasaCambio - Fecha de consulta de la tasa
  */
 public record GastoResponse(
     Long idGasto,
@@ -32,7 +36,11 @@ public record GastoResponse(
     String descripcion,
     String lugar,
     LocalDate fecha,
-    BigDecimal monto
+    BigDecimal monto,
+    String moneda,
+    BigDecimal montoUsd,
+    BigDecimal tasaCambio,
+    LocalDate fechaTasaCambio
 ) {
     
     /**
@@ -50,7 +58,11 @@ public record GastoResponse(
             gasto.descripcion,
             gasto.lugar,
             gasto.fecha,
-            gasto.monto
+            gasto.monto,
+            gasto.moneda,
+            gasto.montoUsd,
+            gasto.tasaCambio,
+            gasto.fechaTasaCambio
         );
     }
 }

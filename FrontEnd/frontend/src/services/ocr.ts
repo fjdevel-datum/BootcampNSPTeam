@@ -195,6 +195,8 @@ export function buildPayloadFromFormData(formData: GastoFormData) {
     MontoTotal: formData.montoTotal,
     Fecha: formData.fecha,
     IdCategoria: formData.idCategoria ? Number.parseInt(formData.idCategoria, 10) : undefined,
+    IdTarjeta: formData.idTarjeta ? Number.parseInt(formData.idTarjeta, 10) : undefined,
+    Moneda: "USD", // Por defecto USD hasta implementar selector de moneda
   };
 }
 
@@ -223,6 +225,7 @@ function mapToFormData(parsed: Record<string, unknown> | null): GastoFormData {
       montoTotal: "",
       fecha: "",
       idCategoria: "",
+      idTarjeta: undefined,
     };
   }
 
@@ -237,6 +240,7 @@ function mapToFormData(parsed: Record<string, unknown> | null): GastoFormData {
     montoTotal: normalizeAmount(pick(parsed, ["MontoTotal", "Monto Total", "montoTotal"])),
     fecha: normalizeDate(pick(parsed, ["Fecha", "fecha"])),
     idCategoria: "",
+    idTarjeta: undefined,
   };
 }
 

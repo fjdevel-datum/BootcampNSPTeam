@@ -35,7 +35,20 @@ public class Gasto {
     public LocalDate fecha;
 
     @Column(name = "monto", precision = 10, scale = 2)
-    public BigDecimal monto;
+    public BigDecimal monto; // Valor ORIGINAL de la factura (ej: 34.25 GTQ)
+
+    // Campos para manejo multi-moneda
+    @Column(name = "moneda", length = 3)
+    public String moneda; // ISO 4217: USD, GTQ, HNL, PAB, EUR
+
+    @Column(name = "monto_usd", precision = 10, scale = 2)
+    public BigDecimal montoUsd; // Monto convertido a USD (ej: 4.45)
+
+    @Column(name = "tasa_cambio", precision = 10, scale = 6)
+    public BigDecimal tasaCambio; // Tasa de conversión usada (ej: 0.13 para GTQ->USD)
+
+    @Column(name = "fecha_tasa_cambio")
+    public LocalDate fechaTasaCambio; // Fecha en que se obtuvo la tasa
 
     // Nombre del blob dentro del contenedor (clave real en Azure)
     @Column(name = "blob_name", length = 300)
@@ -56,6 +69,103 @@ public class Gasto {
     private String openkmDocUuid;
 
     // Getters y Setters
+     // Getters y Setters
+    public Long getIdGasto() {
+        return idGasto;
+    }
+
+    public void setIdGasto(Long idGasto) {
+        this.idGasto = idGasto;
+    }
+
+    public Evento getEvento() {
+        return evento;
+    }
+
+    public void setEvento(Evento evento) {
+        this.evento = evento;
+    }
+
+    public Tarjeta getTarjeta() {
+        return tarjeta;
+    }
+
+    public void setTarjeta(Tarjeta tarjeta) {
+        this.tarjeta = tarjeta;
+    }
+
+    public CategoriaGasto getCategoria() {
+        return categoria;
+    }
+
+    public void setCategoria(CategoriaGasto categoria) {
+        this.categoria = categoria;
+    }
+
+    public String getDescripcion() {
+        return descripcion;
+    }
+
+    public void setDescripcion(String descripcion) {
+        this.descripcion = descripcion;
+    }
+
+    public String getLugar() {
+        return lugar;
+    }
+
+    public void setLugar(String lugar) {
+        this.lugar = lugar;
+    }
+
+    public LocalDate getFecha() {
+        return fecha;
+    }
+
+    public void setFecha(LocalDate fecha) {
+        this.fecha = fecha;
+    }
+
+    public BigDecimal getMonto() {
+        return monto;
+    }
+
+    public void setMonto(BigDecimal monto) {
+        this.monto = monto;
+    }
+
+    public String getMoneda() {
+        return moneda;
+    }
+
+    public void setMoneda(String moneda) {
+        this.moneda = moneda;
+    }
+
+    public BigDecimal getMontoUsd() {
+        return montoUsd;
+    }
+
+    public void setMontoUsd(BigDecimal montoUsd) {
+        this.montoUsd = montoUsd;
+    }
+
+    public BigDecimal getTasaCambio() {
+        return tasaCambio;
+    }
+
+    public void setTasaCambio(BigDecimal tasaCambio) {
+        this.tasaCambio = tasaCambio;
+    }
+
+    public LocalDate getFechaTasaCambio() {
+        return fechaTasaCambio;
+    }
+
+    public void setFechaTasaCambio(LocalDate fechaTasaCambio) {
+        this.fechaTasaCambio = fechaTasaCambio;
+    }
+
     public String getBlobName() {
         return blobName;
     }
@@ -95,8 +205,6 @@ public class Gasto {
     public void setOpenkmDocUuid(String openkmDocUuid) {
         this.openkmDocUuid = openkmDocUuid;
     }
-
-
 
     // Constructor vacío
     public Gasto() {}

@@ -1,36 +1,49 @@
 ﻿import { ArrowLeft, Camera, Edit2, Mail, Phone, User } from "lucide-react";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import type { ChangeEvent } from "react";
 import { useNavigate } from "react-router-dom";
-
-type Profile = {
-  username: string;
-  email: string;
-  phone: string;
-  position: string;
-  department: string;
-};
-
-const INITIAL_PROFILE: Profile = {
-  username: "Ann Lee",
-  email: "ann.lee@datum.com",
-  phone: "+503 7889 9999",
-  position: "Coordinadora",
-  department: "Operaciones",
-};
+import { obtenerPerfil, actualizarPerfil } from "../services/empleados";
+import type { PerfilEmpleado, ActualizarPerfilPayload } from "../types/empleado";
 
 export default function ProfilePage() {
   const navigate = useNavigate();
-  const [profile, setProfile] = useState<Profile>(INITIAL_PROFILE);
+  const [profile, setProfile] = useState<PerfilEmpleado | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
-  const [tempProfile, setTempProfile] = useState<Profile>(INITIAL_PROFILE);
+  const [tempProfile, setTempProfile] = useState<ActualizarPerfilPayload>({
+    nombre: "",
+    apellido: "",
+    correo: "",
+    telefono: "",
+  });
   const [profileImage, setProfileImage] = useState<string>(
-    "https://images.unsplash.com/photo-1544723795-3fb6469f5b39?auto=format&fit=crop&w=256&q=80"
+    "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=256&q=80"
   );
   const [tempImage, setTempImage] = useState<string>("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  function handleInputChange(field: keyof Profile) {
+  // Cargar perfil al montar el componente
+  useEffect(() => {
+    cargarPerfil();
+  }, []);
+
+  async function cargarPerfil() {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const data = await obtenerPerfil();
+      setProfile(data);
+    } catch (err) {
+      console.error("Error al cargar perfil:", err);
+      setError(err instanceof Error ? err.message : "Error al cargar el perfil");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  function handleInputChange(field: keyof ActualizarPerfilPayload) {
     return (event: ChangeEvent<HTMLInputElement>) => {
       setTempProfile((prev) => ({ ...prev, [field]: event.target.value }));
     };
@@ -48,24 +61,108 @@ export default function ProfilePage() {
   }
 
   function handleEditClick() {
-    setTempProfile(profile);
+    if (!profile) return;
+    
+    setTempProfile({
+      nombre: profile.nombre,
+      apellido: profile.apellido,
+      correo: profile.correo,
+      telefono: profile.telefono || "",
+    });
     setTempImage(profileImage);
     setIsEditMode(true);
+    setSaveError(null);
   }
 
   function handleCancelEdit() {
-    setTempProfile(profile);
+    if (!profile) return;
+    
+    setTempProfile({
+      nombre: profile.nombre,
+      apellido: profile.apellido,
+      correo: profile.correo,
+      telefono: profile.telefono || "",
+    });
     setTempImage("");
     setIsEditMode(false);
+    setSaveError(null);
   }
 
-  function handleSaveEdit() {
-    setProfile(tempProfile);
-    if (tempImage) {
-      setProfileImage(tempImage);
+  async function handleSaveEdit() {
+    try {
+      setSaveError(null);
+      const updatedProfile = await actualizarPerfil(tempProfile);
+      setProfile(updatedProfile);
+      if (tempImage) {
+        setProfileImage(tempImage);
+      }
+      setIsEditMode(false);
+    } catch (err) {
+      console.error("Error al actualizar perfil:", err);
+      setSaveError(err instanceof Error ? err.message : "Error al actualizar el perfil");
     }
-    setIsEditMode(false);
-    // TODO: Hook up API call when backend is ready.
+  }
+
+  // Mostrar loading
+  if (isLoading) {
+    return (
+      <main className="min-h-screen bg-slate-100">
+        <header className="bg-white shadow-sm border-b border-slate-200">
+          <div className="px-4 py-4 flex items-center justify-between">
+            <button
+              onClick={() => navigate("/home")}
+              className="inline-flex items-center gap-2 px-3 py-2 text-slate-600 hover:text-slate-900 transition"
+            >
+              <ArrowLeft className="h-5 w-5" />
+              <span className="text-sm font-medium">Regresar</span>
+            </button>
+            <h1 className="text-lg font-semibold text-slate-900">Mi Perfil</h1>
+            <div className="w-24"></div>
+          </div>
+        </header>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-600 mx-auto"></div>
+            <p className="mt-4 text-slate-600">Cargando perfil...</p>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  // Mostrar error
+  if (error || !profile) {
+    return (
+      <main className="min-h-screen bg-slate-100">
+        <header className="bg-white shadow-sm border-b border-slate-200">
+          <div className="px-4 py-4 flex items-center justify-between">
+            <button
+              onClick={() => navigate("/home")}
+              className="inline-flex items-center gap-2 px-3 py-2 text-slate-600 hover:text-slate-900 transition"
+            >
+              <ArrowLeft className="h-5 w-5" />
+              <span className="text-sm font-medium">Regresar</span>
+            </button>
+            <h1 className="text-lg font-semibold text-slate-900">Mi Perfil</h1>
+            <div className="w-24"></div>
+          </div>
+        </header>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center max-w-md">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+              <p className="text-red-700 font-medium mb-2">Error al cargar perfil</p>
+              <p className="text-red-600 text-sm mb-4">{error || "No se pudo cargar el perfil"}</p>
+              <button
+                onClick={cargarPerfil}
+                className="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg transition"
+              >
+                Reintentar
+              </button>
+            </div>
+          </div>
+        </div>
+      </main>
+    );
   }
 
   return (
@@ -116,8 +213,8 @@ export default function ProfilePage() {
                 </div>
 
                 <div className="text-center">
-                  <h2 className="text-xl font-bold text-slate-900">{profile.username}</h2>
-                  <p className="text-sm text-slate-500">{profile.position}</p>
+                  <h2 className="text-xl font-bold text-slate-900">{profile.nombre} {profile.apellido}</h2>
+                  <p className="text-sm text-slate-500">{profile.cargo || "Sin cargo asignado"}</p>
                 </div>
 
                 {!isEditMode ? (
@@ -161,23 +258,49 @@ export default function ProfilePage() {
                   Información General
                 </h3>
 
+                {saveError && (
+                  <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <p className="text-red-700 text-sm">{saveError}</p>
+                  </div>
+                )}
+
                 <div className="space-y-6">
-                  {/* Nombre de usuario */}
+                  {/* Nombre */}
                   <div>
                     <label className="flex items-center gap-2 text-sm font-medium text-slate-600 mb-2">
                       <User className="h-4 w-4" />
-                      Nombre Completo
+                      Nombre
                     </label>
                     {isEditMode ? (
                       <input
                         type="text"
-                        value={tempProfile.username}
-                        onChange={handleInputChange("username")}
+                        value={tempProfile.nombre}
+                        onChange={handleInputChange("nombre")}
                         className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent"
                       />
                     ) : (
                       <p className="px-4 py-3 bg-slate-50 rounded-lg text-slate-900">
-                        {profile.username}
+                        {profile.nombre}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Apellido */}
+                  <div>
+                    <label className="flex items-center gap-2 text-sm font-medium text-slate-600 mb-2">
+                      <User className="h-4 w-4" />
+                      Apellido
+                    </label>
+                    {isEditMode ? (
+                      <input
+                        type="text"
+                        value={tempProfile.apellido}
+                        onChange={handleInputChange("apellido")}
+                        className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent"
+                      />
+                    ) : (
+                      <p className="px-4 py-3 bg-slate-50 rounded-lg text-slate-900">
+                        {profile.apellido}
                       </p>
                     )}
                   </div>
@@ -191,13 +314,13 @@ export default function ProfilePage() {
                     {isEditMode ? (
                       <input
                         type="email"
-                        value={tempProfile.email}
-                        onChange={handleInputChange("email")}
+                        value={tempProfile.correo}
+                        onChange={handleInputChange("correo")}
                         className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent"
                       />
                     ) : (
                       <p className="px-4 py-3 bg-slate-50 rounded-lg text-slate-900">
-                        {profile.email}
+                        {profile.correo}
                       </p>
                     )}
                   </div>
@@ -211,55 +334,37 @@ export default function ProfilePage() {
                     {isEditMode ? (
                       <input
                         type="tel"
-                        value={tempProfile.phone}
-                        onChange={handleInputChange("phone")}
+                        value={tempProfile.telefono || ""}
+                        onChange={handleInputChange("telefono")}
                         className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent"
                       />
                     ) : (
                       <p className="px-4 py-3 bg-slate-50 rounded-lg text-slate-900">
-                        {profile.phone}
+                        {profile.telefono || "No especificado"}
                       </p>
                     )}
                   </div>
 
-                  {/* Posición */}
+                  {/* Cargo - Solo lectura */}
                   <div>
                     <label className="flex items-center gap-2 text-sm font-medium text-slate-600 mb-2">
                       <User className="h-4 w-4" />
-                      Posición
+                      Cargo
                     </label>
-                    {isEditMode ? (
-                      <input
-                        type="text"
-                        value={tempProfile.position}
-                        onChange={handleInputChange("position")}
-                        className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent"
-                      />
-                    ) : (
-                      <p className="px-4 py-3 bg-slate-50 rounded-lg text-slate-900">
-                        {profile.position}
-                      </p>
-                    )}
+                    <p className="px-4 py-3 bg-slate-50 rounded-lg text-slate-900">
+                      {profile.cargo || "Sin cargo asignado"}
+                    </p>
                   </div>
 
-                  {/* Departamento */}
+                  {/* Departamento - Solo lectura */}
                   <div>
                     <label className="flex items-center gap-2 text-sm font-medium text-slate-600 mb-2">
                       <User className="h-4 w-4" />
                       Departamento
                     </label>
-                    {isEditMode ? (
-                      <input
-                        type="text"
-                        value={tempProfile.department}
-                        onChange={handleInputChange("department")}
-                        className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent"
-                      />
-                    ) : (
-                      <p className="px-4 py-3 bg-slate-50 rounded-lg text-slate-900">
-                        {profile.department}
-                      </p>
-                    )}
+                    <p className="px-4 py-3 bg-slate-50 rounded-lg text-slate-900">
+                      {profile.departamento || "Sin departamento asignado"}
+                    </p>
                   </div>
                 </div>
               </div>

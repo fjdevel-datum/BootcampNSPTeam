@@ -10,6 +10,8 @@ import {
   uploadGastoFile,
 } from "../services/ocr";
 import { obtenerCategorias, type CategoriaGasto } from "../services/categorias";
+import { obtenerMisTarjetas } from "../services/tarjetas";
+import type { Tarjeta } from "../types/tarjeta";
 
 interface GastoFormProps {
   imageData?: string;
@@ -34,6 +36,7 @@ const DEFAULT_FORM: GastoFormData = {
   montoTotal: "",
   fecha: "",
   idCategoria: "",
+  idTarjeta: undefined,
 };
 
 const FILE_LABEL: Record<"camera" | "file", string> = {
@@ -71,6 +74,8 @@ export default function GastoForm({
   const [warning, setWarning] = useState<string | null>(null);
   const [categorias, setCategorias] = useState<CategoriaGasto[]>([]);
   const [isLoadingCategorias, setIsLoadingCategorias] = useState<boolean>(true);
+  const [tarjetas, setTarjetas] = useState<Tarjeta[]>([]);
+  const [isLoadingTarjetas, setIsLoadingTarjetas] = useState<boolean>(true);
 
   // Handler para cancelar
   const handleCancel = () => {
@@ -114,6 +119,35 @@ export default function GastoForm({
     };
 
     cargarCategorias();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Cargar tarjetas corporativas al montar el componente
+  useEffect(() => {
+    let cancelled = false;
+
+    const cargarTarjetas = async () => {
+      try {
+        const tarjetasObtenidas = await obtenerMisTarjetas();
+        if (!cancelled) {
+          setTarjetas(tarjetasObtenidas);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          console.error("Error al cargar tarjetas:", err);
+          // No mostramos error al usuario, simplemente no mostramos el dropdown
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingTarjetas(false);
+        }
+      }
+    };
+
+    cargarTarjetas();
 
     return () => {
       cancelled = true;
@@ -208,6 +242,7 @@ export default function GastoForm({
       montoTotal: amount,
       fecha: formData.fecha,
       idCategoria: formData.idCategoria,
+      idTarjeta: formData.idTarjeta,
     };
 
     setFormData(sanitized);
@@ -380,6 +415,27 @@ export default function GastoForm({
                     </select>
                   )}
                 </div>
+
+                {!isLoadingTarjetas && tarjetas.length > 0 && (
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      Tarjeta Corporativa <span className="text-slate-400">(opcional)</span>
+                    </label>
+                    <select
+                      value={formData.idTarjeta || ""}
+                      onChange={handleChange("idTarjeta")}
+                      disabled={isAnalyzing || isSaving}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent disabled:bg-slate-100 disabled:text-slate-500"
+                    >
+                      <option value="">Sin tarjeta (efectivo)</option>
+                      {tarjetas.map((tarjeta) => (
+                        <option key={tarjeta.idTarjeta} value={tarjeta.idTarjeta}>
+                          {tarjeta.banco} - **** {tarjeta.numeroTarjeta.slice(-4)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
                   Verifica los datos antes de guardar. Puedes editarlos si el OCR no los detecto

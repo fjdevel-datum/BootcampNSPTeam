@@ -32,4 +32,12 @@ public interface EmpleadoRepository {
      * @return Optional con el empleado encontrado
      */
     Optional<Empleado> buscarPorId(Long idEmpleado);
+    
+    /**
+     * Actualiza los datos de un empleado existente.
+     *
+     * @param empleado entidad con los datos actualizados
+     * @return entidad actualizada
+     */
+    Empleado update(Empleado empleado);
 }

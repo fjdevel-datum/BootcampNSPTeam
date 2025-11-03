@@ -30,4 +30,10 @@ public class EmpleadoRepositoryImpl implements PanacheRepository<Empleado>, Empl
     public Optional<Empleado> buscarPorId(Long idEmpleado) {
         return findByIdOptional(idEmpleado);
     }
+    
+    @Override
+    @Transactional
+    public Empleado update(Empleado empleado) {
+        return getEntityManager().merge(empleado);
+    }
 }

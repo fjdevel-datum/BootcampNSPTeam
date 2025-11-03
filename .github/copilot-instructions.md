@@ -81,6 +81,7 @@ Los viáticos varían según región
 - ❌ NO mezclar lógica de negocio en Controllers REST
 - ❌ NO usar `any` en TypeScript
 - ❌ NO exponer entidades JPA directamente en REST APIs (usar DTOs)
+- ❌ NO generar resumenes .md de explicacion
 
 ## Librerías Disponibles
 ### Backend

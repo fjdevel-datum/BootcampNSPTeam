@@ -4,6 +4,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.ws.rs.BadRequestException;
+import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 import org.acme.ocrquarkus.service.GastoService;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
@@ -29,13 +33,23 @@ public class OcrService {
     @Inject
     LlmService llmService;
 
+    private static final int MAX_POLL_ATTEMPTS = 90;
+    private static final long INITIAL_POLL_DELAY_MILLIS = 1000;
+    private static final long MAX_POLL_DELAY_MILLIS = 4000;
+
     private final HttpClient client = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(20))
+            .connectTimeout(Duration.ofSeconds(30))
             .build();
 
     private static final ObjectMapper M = new ObjectMapper();
 
     public String ocr(byte[] imageBytes) throws Exception {
+        if (imageBytes == null || imageBytes.length == 0) {
+            throw new BadRequestException("The uploaded file is empty or unreadable.");
+        }
+
+        ensureAzureConfiguration();
+
         // 1. Procesar la imagen con Azure Document Intelligence
         System.out.println("Enviando imagen a Azure Document Intelligence...");
         String ocrResult = processWithAzure(imageBytes);
@@ -85,33 +99,55 @@ public class OcrService {
                 .build();
 
         HttpResponse<String> submitRes = client.send(submit, HttpResponse.BodyHandlers.ofString());
-        System.out.println("Status code inicial: " + submitRes.statusCode());
+        int initialStatus = submitRes.statusCode();
+        System.out.println("Status code inicial: " + initialStatus);
         System.out.println("Respuesta inicial: " + submitRes.body());
-        
-        String opLoc = submitRes.headers().firstValue("operation-location")
-                .orElseThrow(() -> new IllegalStateException("operation-location no devuelto por el servicio"));
-        System.out.println("URL de operación: " + opLoc);
+
+        if (initialStatus < 200 || initialStatus >= 300) {
+            throw remoteError("Azure Document Intelligence rejected the analyze request", initialStatus, submitRes.body());
+        }
+
+        String opLoc = submitRes.headers().firstValue("operation-location").orElse(null);
+        if (opLoc == null || opLoc.isBlank()) {
+            throw remoteError("Azure Document Intelligence did not return the operation-location header", initialStatus, submitRes.body());
+        }
+        System.out.println("URL de operacion: " + opLoc);
 
         // Polling hasta 'succeeded'
-        for (int i = 0; i < 30; i++) {
-            Thread.sleep(1000);
+        long totalDelayMillis = 0;
+        for (int attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
+            long delay = Math.min(
+                    INITIAL_POLL_DELAY_MILLIS + attempt * 250L,
+                    MAX_POLL_DELAY_MILLIS
+            );
+            Thread.sleep(delay);
+            totalDelayMillis += delay;
             HttpRequest get = HttpRequest.newBuilder()
                     .uri(URI.create(opLoc))
-                    .timeout(Duration.ofSeconds(30))
+                    .timeout(Duration.ofSeconds(60))
                     .header("Ocp-Apim-Subscription-Key", apiKey)
                     .GET()
                     .build();
             HttpResponse<String> res = client.send(get, HttpResponse.BodyHandlers.ofString());
+            int pollStatus = res.statusCode();
+            if (pollStatus >= 400) {
+                throw remoteError("Azure Document Intelligence returned an error while polling the analyze operation", pollStatus, res.body());
+            }
             JsonNode j = M.readTree(res.body());
             String status = j.path("status").asText();
             if ("succeeded".equalsIgnoreCase(status)) {
                 return res.body();
             }
             if ("failed".equalsIgnoreCase(status)) {
-                throw new IllegalStateException("Analyze failed: " + res.body());
+                throw remoteError("Azure Document Intelligence reported a failed status for the analyze operation", pollStatus, res.body());
             }
         }
-        throw new IllegalStateException("Timeout esperando resultado de Document Intelligence.");
+        long waitedSeconds = (long) Math.ceil(totalDelayMillis / 1000.0);
+        throw remoteError(
+                "Azure Document Intelligence did not finish within the expected time (" + waitedSeconds + "s)",
+                504,
+                null
+        );
     }
 
     private String extractText(String ocrResult) throws Exception {
@@ -132,5 +168,49 @@ public class OcrService {
     private String processWithLLM(String text) throws Exception {
         return llmService.classifyFromOcr(text, null, null);
     }
-}
 
+    private void ensureAzureConfiguration() {
+        if (endpoint == null || endpoint.isBlank()) {
+            throw configurationError("Azure Document Intelligence endpoint is not configured.");
+        }
+        if (apiKey == null || apiKey.isBlank()) {
+            throw configurationError("Azure Document Intelligence key is not configured.");
+        }
+    }
+
+    private WebApplicationException configurationError(String message) {
+        return plainTextError(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), message);
+    }
+
+    private WebApplicationException remoteError(String context, int statusCode, String body) {
+        StringBuilder message = new StringBuilder(context);
+        if (statusCode > 0) {
+            message.append(" (status ").append(statusCode).append(')');
+        }
+        if (body != null && !body.isBlank()) {
+            message.append(": ").append(body);
+        }
+
+        int httpStatus;
+        if (statusCode == 400 || statusCode == 413 || statusCode == 415 || statusCode == 422) {
+            httpStatus = Response.Status.BAD_REQUEST.getStatusCode();
+        } else if (statusCode >= 400 && statusCode < 500) {
+            httpStatus = Response.Status.BAD_GATEWAY.getStatusCode();
+        } else if (statusCode >= 500 && statusCode < 600) {
+            httpStatus = Response.Status.BAD_GATEWAY.getStatusCode();
+        } else {
+            httpStatus = Response.Status.BAD_GATEWAY.getStatusCode();
+        }
+
+        return plainTextError(httpStatus, message.toString());
+    }
+
+    private WebApplicationException plainTextError(int statusCode, String message) {
+        Response.ResponseBuilder builder = Response.status(statusCode)
+                .type(MediaType.TEXT_PLAIN_TYPE);
+        if (message != null && !message.isBlank()) {
+            builder.entity(message);
+        }
+        return new WebApplicationException(builder.build());
+    }
+}

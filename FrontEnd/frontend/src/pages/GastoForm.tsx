@@ -159,6 +159,13 @@ export default function GastoForm({
     let cancelled = false;
 
     const run = async () => {
+      // Espera un tick antes de iniciar la petición para permitir que StrictMode
+      // ejecute el ciclo de limpieza sin disparar llamadas duplicadas.
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+      if (cancelled) {
+        return;
+      }
+
       setIsAnalyzing(true);
       setError(null);
       setWarning(null);

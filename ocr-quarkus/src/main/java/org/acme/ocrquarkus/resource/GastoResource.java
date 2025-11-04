@@ -130,9 +130,10 @@ public class GastoResource {
     @Produces(MediaType.APPLICATION_OCTET_STREAM)
     public Response downloadFile(@PathParam("id") Long id) {
         try {
-            byte[] data = gastoService.downloadFile(id);
-            return Response.ok(data)
-                    .header("Content-Disposition", "attachment; filename=\"gasto-" + id + "\"")
+            GastoService.FileDownloadResult file = gastoService.downloadFile(id);
+            return Response.ok(file.getData())
+                    .type(file.getContentType())
+                    .header("Content-Disposition", "inline; filename=\"" + file.getFileName() + "\"")
                     .build();
         } catch (NotFoundException e) {
             return Response.status(Response.Status.NOT_FOUND).entity(e.getMessage()).build();

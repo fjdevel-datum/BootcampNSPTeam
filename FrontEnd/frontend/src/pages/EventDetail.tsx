@@ -1,10 +1,25 @@
-import { ArrowLeft, FileText, Paperclip, Camera, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import {
+  ArrowLeft,
+  FileText,
+  Paperclip,
+  Camera,
+  X,
+  Eye,
+  Loader2,
+  MapPin,
+  CalendarDays,
+  CreditCard,
+  Download,
+  ExternalLink,
+} from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { defaultEventData, type EventoBackend } from "../types/event";
-import { dataUrlToFile } from "../services/ocr";
+import { dataUrlToFile, downloadGastoFile } from "../services/ocr";
 import { eventosService } from "../services/eventos";
 import { useAuth } from "../context/AuthContext";
+import { gastosService } from "../services/gastos";
+import type { GastoBackend } from "../types/gasto";
 
 interface EventLocationState {
   evento?: EventoBackend;
@@ -15,6 +30,12 @@ interface NavigateStatePayload {
   imageType: "camera" | "file";
   fileName?: string;
   sourceFile: File;
+}
+
+interface PreviewModalData {
+  url: string;
+  fileName: string;
+  contentType: string;
 }
 
 export default function EventDetailPage() {
@@ -32,6 +53,12 @@ export default function EventDetailPage() {
   const [eventoError, setEventoError] = useState<string | null>(null);
   const [isLoadingEvento, setIsLoadingEvento] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+  const [gastos, setGastos] = useState<GastoBackend[]>([]);
+  const [isLoadingGastos, setIsLoadingGastos] = useState(false);
+  const [gastosError, setGastosError] = useState<string | null>(null);
+  const [gastoIdEnProceso, setGastoIdEnProceso] = useState<number | null>(null);
+  const [previewData, setPreviewData] = useState<PreviewModalData | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   // Estados para manejo de imágenes y cámara
   const [isCameraOpen, setIsCameraOpen] = useState(false);
@@ -41,11 +68,194 @@ export default function EventDetailPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const previewUrlRef = useRef<string | null>(null);
 
   // Obtener la primera letra del username para el avatar
   const getUserInitial = () => {
     if (!user?.username) return "U";
     return user.username.charAt(0).toUpperCase();
+  };
+
+  const totalGastado = useMemo(
+    () =>
+      gastos.reduce((acumulado, gasto) => {
+        const monto = Number(gasto.monto ?? 0);
+        if (Number.isNaN(monto)) {
+          return acumulado;
+        }
+        return acumulado + monto;
+      }, 0),
+    [gastos]
+  );
+
+  const financialData = useMemo(() => {
+    const base = defaultEventData.financialData;
+    const totalRecibido = base.totalReceived;
+    return {
+      ...base,
+      totalSpent: totalGastado,
+      remaining: Math.max(totalRecibido - totalGastado, 0),
+    };
+  }, [totalGastado]);
+
+  const eventDisplayName =
+    eventoSeleccionado?.nombreEvento || decodedEventName || "EVENTO";
+
+  const eventData = {
+    ...defaultEventData,
+    name: eventDisplayName,
+    colorClass: "bg-sky-900",
+    financialData,
+    transactions: [],
+  };
+
+  const formatCurrency = (valor: number, codigoMoneda: string | null | undefined) => {
+    const monto = Number(valor);
+    if (!Number.isFinite(monto)) {
+      return "$0.00";
+    }
+    const monedaBase =
+      typeof codigoMoneda === "string" ? codigoMoneda.trim().toUpperCase() : "";
+    const moneda = monedaBase || "USD";
+    try {
+      return new Intl.NumberFormat("es-MX", {
+        style: "currency",
+        currency: moneda,
+        minimumFractionDigits: 2,
+      }).format(monto);
+    } catch {
+      return `${moneda} ${monto.toFixed(2)}`;
+    }
+  };
+
+  const formatFecha = (valor: string | null) => {
+    if (!valor) {
+      return "Sin fecha";
+    }
+    const fecha = new Date(valor);
+    if (Number.isNaN(fecha.getTime())) {
+      return valor;
+    }
+    return new Intl.DateTimeFormat("es-MX", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    }).format(fecha);
+  };
+
+  const inferImageMime = (fileName: string | null | undefined, currentType: string | null | undefined) => {
+    const normalizedType = (currentType ?? "").toLowerCase();
+    if (normalizedType.startsWith("image/")) {
+      return normalizedType;
+    }
+    if (!fileName) {
+      return normalizedType;
+    }
+    const lowerName = fileName.toLowerCase();
+    if (lowerName.endsWith(".png")) {
+      return "image/png";
+    }
+    if (lowerName.endsWith(".jpg") || lowerName.endsWith(".jpeg")) {
+      return "image/jpeg";
+    }
+    if (lowerName.endsWith(".gif")) {
+      return "image/gif";
+    }
+    if (lowerName.endsWith(".webp")) {
+      return "image/webp";
+    }
+    return normalizedType;
+  };
+
+  const obtenerTextoTarjeta = (gasto: GastoBackend) => {
+    if (!gasto.idTarjeta) {
+      return "Tarjeta personal";
+    }
+    const numero = gasto.numeroTarjeta?.trim() ?? "";
+    if (!numero) {
+      return "Tarjeta corporativa";
+    }
+    const digits = numero.replaceAll(/\D+/g, "");
+    if (digits.length >= 4) {
+      return `Tarjeta ${digits.slice(-4)}`;
+    }
+    return numero;
+  };
+
+  const openPreviewModal = (data: PreviewModalData) => {
+    if (previewUrlRef.current) {
+      URL.revokeObjectURL(previewUrlRef.current);
+    }
+    previewUrlRef.current = data.url;
+    setPreviewData(data);
+    setIsPreviewOpen(true);
+  };
+
+  const closePreviewModal = () => {
+    if (previewUrlRef.current) {
+      URL.revokeObjectURL(previewUrlRef.current);
+      previewUrlRef.current = null;
+    }
+    setPreviewData(null);
+    setIsPreviewOpen(false);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (previewUrlRef.current) {
+        URL.revokeObjectURL(previewUrlRef.current);
+      }
+    };
+  }, []);
+
+  const handleDownloadPreview = () => {
+    if (!previewData) {
+      return;
+    }
+    const link = document.createElement("a");
+    link.href = previewData.url;
+    link.download = previewData.fileName || "comprobante-gasto";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleOpenPreviewInTab = () => {
+    if (!previewData) {
+      return;
+    }
+    window.open(previewData.url, "_blank", "noopener,noreferrer");
+  };
+
+  const handleViewReceipt = async (gasto: GastoBackend) => {
+    if (!gasto.tieneComprobante) {
+      alert("Este gasto no tiene un comprobante adjunto.");
+      return;
+    }
+    setGastoIdEnProceso(gasto.idGasto);
+    try {
+      const { blob, fileName, contentType } = await downloadGastoFile(gasto.idGasto);
+      if (!blob || blob.size === 0) {
+        throw new Error("El comprobante esta vacio.");
+      }
+      const blobUrl = URL.createObjectURL(blob);
+      const finalFileName = fileName || `comprobante-${gasto.idGasto}`;
+      const resolvedContentType = inferImageMime(finalFileName, contentType);
+      openPreviewModal({
+        url: blobUrl,
+        fileName: finalFileName,
+        contentType: resolvedContentType,
+      });
+    } catch (error) {
+      console.error("Error al abrir el comprobante del gasto:", error);
+      const message =
+        error instanceof Error
+          ? error.message
+          : "No se pudo abrir el comprobante del gasto.";
+      alert(message);
+    } finally {
+      setGastoIdEnProceso(null);
+    }
   };
 
   const handleLogout = async () => {
@@ -96,6 +306,44 @@ export default function EventDetailPage() {
   }, [decodedEventName, eventoSeleccionado]);
 
   const idEvento = eventoSeleccionado?.idEvento ?? null;
+
+  useEffect(() => {
+    if (!idEvento) {
+      setGastos([]);
+      return;
+    }
+
+    let cancelled = false;
+    setIsLoadingGastos(true);
+    setGastosError(null);
+
+    gastosService
+      .listarPorEvento(idEvento)
+      .then((lista) => {
+        if (!cancelled) {
+          setGastos(lista);
+        }
+      })
+      .catch((error) => {
+        console.error("Error al obtener los gastos del evento:", error);
+        if (!cancelled) {
+          const message =
+            error instanceof Error
+              ? error.message
+              : "No se pudieron cargar los gastos del evento.";
+          setGastosError(message);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoadingGastos(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [idEvento]);
 
   const ensureEventoIdentificado = () => {
     if (!idEvento) {
@@ -220,14 +468,7 @@ export default function EventDetailPage() {
     }
   };
 
-  // Datos mock mientras no se integran métricas reales
-  const eventData = {
-    ...defaultEventData,
-    name: eventoSeleccionado?.nombreEvento || decodedEventName || "EVENTO",
-    colorClass: "bg-sky-900",
-  };
-
-  const { financialData } = eventData;
+  const financialOverview = eventData.financialData;
 
   return (
     <main className="min-h-screen bg-slate-100">
@@ -329,7 +570,7 @@ export default function EventDetailPage() {
                 <span className="text-sm text-slate-600">Total Recibido</span>
               </div>
               <p className="text-2xl font-bold text-slate-900">
-                ${financialData.totalReceived.toFixed(2)}
+                ${financialOverview.totalReceived.toFixed(2)}
               </p>
             </div>
 
@@ -340,7 +581,7 @@ export default function EventDetailPage() {
                 <span className="text-sm text-slate-600">Gastado</span>
               </div>
               <p className="text-2xl font-bold text-slate-900">
-                ${financialData.totalSpent.toFixed(2)}
+                ${financialOverview.totalSpent.toFixed(2)}
               </p>
             </div>
 
@@ -351,7 +592,7 @@ export default function EventDetailPage() {
                 <span className="text-sm text-slate-600">Restante</span>
               </div>
               <p className="text-2xl font-bold text-slate-900">
-                ${financialData.remaining.toFixed(2)}
+                ${financialOverview.remaining.toFixed(2)}
               </p>
             </div>
           </div>
@@ -366,39 +607,137 @@ export default function EventDetailPage() {
             <h3 className="text-lg font-semibold text-slate-900">Historial de transacciones</h3>
           </div>
 
-          {eventData.transactions.length === 0 ? (
+          {isLoadingGastos ? (
+            <p className="text-center text-slate-500 py-8">
+              Cargando gastos del evento...
+            </p>
+          ) : gastosError ? (
+            <p className="text-center text-red-600 py-8">{gastosError}</p>
+          ) : gastos.length === 0 ? (
             <p className="text-center text-slate-500 py-8">
               No hay transacciones registradas para este evento.
             </p>
           ) : (
-            <div className="space-y-3">
-              {eventData.transactions.map((transaction) => (
-                <div
-                  key={transaction.id}
-                  className="flex items-center justify-between p-3 bg-slate-50 rounded-lg"
-                >
-                  <div className="flex-1">
-                    <p className="font-medium text-slate-900">{transaction.description}</p>
-                    <p className="text-sm text-slate-500">{transaction.date}</p>
+            <div className="space-y-4">
+              {gastos.map((gasto) => {
+                const monto = Number(gasto.monto ?? 0);
+                const moneda = gasto.moneda || "USD";
+                return (
+                  <div
+                    key={gasto.idGasto}
+                    className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-slate-50/60 p-4 shadow-sm md:flex-row md:items-center md:gap-6 md:p-5"
+                  >
+                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600">
+                      <span className="text-lg font-semibold">-</span>
+                    </div>
+                    <div className="flex-1 space-y-2">
+                      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                        <p className="text-base font-semibold text-slate-900">
+                          {gasto.descripcion && gasto.descripcion.trim()
+                            ? gasto.descripcion
+                            : "Gasto sin descripción"}
+                        </p>
+                        <p className="text-base font-bold text-slate-900">
+                          {formatCurrency(monto, moneda)}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500 md:text-sm">
+                        <span className="inline-flex items-center gap-1">
+                          <CalendarDays className="h-4 w-4" />
+                          {formatFecha(gasto.fecha)}
+                        </span>
+                        <span className="inline-flex items-center gap-1">
+                          <MapPin className="h-4 w-4" />
+                          {gasto.lugar && gasto.lugar.trim() ? gasto.lugar : "Sin lugar"}
+                        </span>
+                        <span className="inline-flex items-center gap-1">
+                          <CreditCard className="h-4 w-4" />
+                          {obtenerTextoTarjeta(gasto)}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex flex-shrink-0 items-center gap-2 self-end md:self-auto">
+                      <button
+                        type="button"
+                        onClick={() => handleViewReceipt(gasto)}
+                        disabled={!gasto.tieneComprobante || gastoIdEnProceso === gasto.idGasto}
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-600 transition hover:border-sky-500 hover:text-sky-600 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300"
+                        title={
+                          gasto.tieneComprobante
+                            ? "Ver comprobante"
+                            : "Este gasto no tiene comprobante"
+                        }
+                      >
+                        {gastoIdEnProceso === gasto.idGasto ? (
+                          <Loader2 className="h-5 w-5 animate-spin" />
+                        ) : (
+                          <Eye className="h-5 w-5" />
+                        )}
+                      </button>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p
-                      className={`font-semibold ${
-                        transaction.type === "income" ? "text-green-600" : "text-red-600"
-                      }`}
-                    >
-                      {transaction.type === "income" ? "+" : "-"}${transaction.amount.toFixed(2)}
-                    </p>
-                    <p className="text-xs text-slate-500 capitalize">
-                      {transaction.type === "income" ? "Ingreso" : "Gasto"}
-                    </p>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
       </div>
+
+      {isPreviewOpen && previewData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-slate-900">Comprobante del gasto</h3>
+                <p className="text-xs text-slate-500">{previewData.fileName}</p>
+              </div>
+              <button
+                onClick={closePreviewModal}
+                className="rounded-full p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+              {(previewData.contentType || "").toLowerCase().startsWith("image/") ? (
+                <img
+                  src={previewData.url}
+                  alt={previewData.fileName}
+                  className="mx-auto max-h-72 w-full rounded-lg object-contain shadow-sm"
+                />
+              ) : (
+                <div className="py-16 text-center text-sm text-slate-500">
+                  Este comprobante no es una imagen. Descárgalo para revisarlo.
+                </div>
+              )}
+            </div>
+
+            <div className="mt-6 flex flex-wrap justify-end gap-3">
+              <button
+                onClick={handleOpenPreviewInTab}
+                className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 transition hover:border-sky-500 hover:text-sky-600"
+              >
+                <ExternalLink className="h-4 w-4" />
+                Abrir en pestaña
+              </button>
+              <button
+                onClick={handleDownloadPreview}
+                className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 transition hover:border-sky-500 hover:text-sky-600"
+              >
+                <Download className="h-4 w-4" />
+                Descargar
+              </button>
+              <button
+                onClick={closePreviewModal}
+                className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Action Buttons - Para tomar fotos */}
       <div className="fixed bottom-6 right-6 flex flex-col gap-3">
@@ -492,3 +831,9 @@ export default function EventDetailPage() {
     </main>
   );
 }
+
+
+
+
+
+

@@ -144,12 +144,21 @@ public class GastoService {
         return g;
     }
 
-    public byte[] downloadFile(Long gastoId) throws Exception {
+    public FileDownloadResult downloadFile(Long gastoId) throws Exception {
         Gasto g = gastoRepository.findById(gastoId);
         if (g == null || g.getBlobName() == null) {
             throw new NotFoundException("Gasto o archivo no encontrado");
         }
-        return azureStorageService.download(g.getBlobName());
+
+        byte[] data = azureStorageService.download(g.getBlobName());
+
+        String fileName = extractFileName(g.getBlobName(), gastoId);
+        String contentType = g.getFileContentType();
+        if (contentType == null || contentType.isBlank()) {
+            contentType = inferContentType(fileName, "application/octet-stream");
+        }
+
+        return new FileDownloadResult(data, contentType, fileName);
     }
 
     @Transactional
@@ -308,11 +317,69 @@ public class GastoService {
         return prefix + safeName;
     }
 
+    private String extractFileName(String blobName, Long gastoId) {
+        if (blobName == null || blobName.isBlank()) {
+            return "gasto-" + gastoId;
+        }
+        int idx = blobName.lastIndexOf('/');
+        if (idx < 0 || idx == blobName.length() - 1) {
+            return blobName;
+        }
+        return blobName.substring(idx + 1);
+    }
+
+    private String inferContentType(String fileName, String fallback) {
+        if (fileName == null || fileName.isBlank()) {
+            return fallback;
+        }
+        String lower = fileName.toLowerCase(Locale.ROOT);
+        if (lower.endsWith(".png")) {
+            return "image/png";
+        }
+        if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) {
+            return "image/jpeg";
+        }
+        if (lower.endsWith(".gif")) {
+            return "image/gif";
+        }
+        if (lower.endsWith(".webp")) {
+            return "image/webp";
+        }
+        if (lower.endsWith(".pdf")) {
+            return "application/pdf";
+        }
+        return fallback;
+    }
+
     private String capitalize(String value, Locale locale) {
         if (value == null || value.isBlank()) {
             return value;
         }
         String normalized = value.trim().toLowerCase(locale);
         return normalized.substring(0, 1).toUpperCase(locale) + normalized.substring(1);
+    }
+
+    public static class FileDownloadResult {
+        private final byte[] data;
+        private final String contentType;
+        private final String fileName;
+
+        public FileDownloadResult(byte[] data, String contentType, String fileName) {
+            this.data = data;
+            this.contentType = contentType;
+            this.fileName = fileName;
+        }
+
+        public byte[] getData() {
+            return data;
+        }
+
+        public String getContentType() {
+            return contentType;
+        }
+
+        public String getFileName() {
+            return fileName;
+        }
     }
 }

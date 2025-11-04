@@ -1,3 +1,22 @@
+export interface GastoBackend {
+  idGasto: number;
+  idEvento: number;
+  nombreEvento: string | null;
+  idCategoria: number | null;
+  nombreCategoria: string | null;
+  idTarjeta: number | null;
+  numeroTarjeta: string | null;
+  descripcion: string | null;
+  lugar: string | null;
+  fecha: string | null;
+  monto: number | null;
+  moneda: string | null;
+  montoUsd: number | null;
+  tasaCambio: number | null;
+  fechaTasaCambio: string | null;
+  tieneComprobante: boolean;
+}
+
 export interface GastoFormData {
   nombreEmpresa: string;
   descripcion: string;

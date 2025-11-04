@@ -24,6 +24,7 @@ import java.time.LocalDate;
  * @param montoUsd - Monto convertido a USD
  * @param tasaCambio - Tasa de cambio aplicada
  * @param fechaTasaCambio - Fecha de consulta de la tasa
+ * @param tieneComprobante - Indica si el gasto tiene un comprobante asociado
  */
 public record GastoResponse(
     Long idGasto,
@@ -40,7 +41,8 @@ public record GastoResponse(
     String moneda,
     BigDecimal montoUsd,
     BigDecimal tasaCambio,
-    LocalDate fechaTasaCambio
+    LocalDate fechaTasaCambio,
+    boolean tieneComprobante
 ) {
     
     /**
@@ -62,7 +64,8 @@ public record GastoResponse(
             gasto.moneda,
             gasto.montoUsd,
             gasto.tasaCambio,
-            gasto.fechaTasaCambio
+            gasto.fechaTasaCambio,
+            gasto.getBlobName() != null || gasto.getBlobUrl() != null || gasto.getOpenkmDocUuid() != null
         );
     }
 }

@@ -147,6 +147,51 @@ export async function uploadGastoFile(gastoId: number, file: File) {
   }>;
 }
 
+export async function downloadGastoFile(gastoId: number) {
+  const token = await getValidAccessToken();
+  if (!token) {
+    throw new Error("Sesión expirada. Vuelve a iniciar sesión para ver el comprobante.");
+  }
+
+  const response = await fetch(resolveBackendPath(`/gastos/${gastoId}/archivo`), {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    const message = await safeReadText(response);
+    if (response.status === 404) {
+      throw new Error("No existe un comprobante disponible para este gasto.");
+    }
+    throw new Error(
+      `No se pudo obtener el comprobante del gasto (status ${response.status}): ${message || "sin detalle"}`
+    );
+  }
+
+  const blob = await response.blob();
+
+  const disposition = response.headers.get("Content-Disposition") ?? "";
+  let fileName = `gasto-${gastoId}`;
+  const fileNameMatch = disposition.match(/filename\*?=(?:UTF-8'')?["']?([^"';]+)["']?/i);
+  if (fileNameMatch && fileNameMatch[1]) {
+    try {
+      fileName = decodeURIComponent(fileNameMatch[1]);
+    } catch {
+      fileName = fileNameMatch[1];
+    }
+  }
+
+  const contentType = response.headers.get("Content-Type") ?? blob.type ?? "application/octet-stream";
+
+  return {
+    blob,
+    fileName,
+    contentType,
+  };
+}
+
 /**
  * Parse and normalize the LLM response string so it can be used as form defaults.
  */

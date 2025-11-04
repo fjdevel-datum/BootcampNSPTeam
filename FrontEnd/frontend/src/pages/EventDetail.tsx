@@ -4,6 +4,7 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { defaultEventData, type EventoBackend } from "../types/event";
 import { dataUrlToFile } from "../services/ocr";
 import { eventosService } from "../services/eventos";
+import { useAuth } from "../context/AuthContext";
 
 interface EventLocationState {
   evento?: EventoBackend;
@@ -21,6 +22,7 @@ export default function EventDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const locationState = (location.state as EventLocationState | null) ?? null;
+  const { logout, user } = useAuth();
 
   const decodedEventName = eventName ? decodeURIComponent(eventName) : "";
 
@@ -29,6 +31,7 @@ export default function EventDetailPage() {
   );
   const [eventoError, setEventoError] = useState<string | null>(null);
   const [isLoadingEvento, setIsLoadingEvento] = useState(false);
+  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
 
   // Estados para manejo de imágenes y cámara
   const [isCameraOpen, setIsCameraOpen] = useState(false);
@@ -38,6 +41,19 @@ export default function EventDetailPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Obtener la primera letra del username para el avatar
+  const getUserInitial = () => {
+    if (!user?.username) return "U";
+    return user.username.charAt(0).toUpperCase();
+  };
+
+  const handleLogout = async () => {
+    console.log('🚪 [EventDetail] Logout iniciado');
+    await logout();
+    console.log('✅ [EventDetail] Logout completado, redirigiendo...');
+    window.location.href = '/';
+  };
 
   useEffect(() => {
     if (eventoSeleccionado || !decodedEventName) {
@@ -226,16 +242,50 @@ export default function EventDetailPage() {
             <span className="text-sm font-medium">Regresar</span>
           </button>
 
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-3">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-sky-500 text-xs font-semibold text-white">
-                AL
-              </span>
-              <div className="flex flex-col">
-                <span className="text-sm font-semibold text-slate-900">Ann Lee</span>
-                <span className="text-xs text-slate-500">Coordinadora</span>
-              </div>
-            </div>
+          {/* Dropdown de perfil */}
+          <div className="relative">
+            <button
+              onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-500 text-white text-sm font-semibold hover:bg-sky-600 transition"
+            >
+              {getUserInitial()}
+            </button>
+
+            {/* Dropdown Menu */}
+            {isProfileDropdownOpen && (
+              <>
+                {/* Overlay para cerrar al hacer click afuera */}
+                <div 
+                  className="fixed inset-0 z-10" 
+                  onClick={() => setIsProfileDropdownOpen(false)}
+                />
+                
+                {/* Menu dropdown */}
+                <div className="absolute right-0 top-12 z-20 w-48 bg-white rounded-lg shadow-lg border border-slate-200 py-2">
+                  <button
+                    onClick={() => {
+                      navigate('/profile');
+                      setIsProfileDropdownOpen(false);
+                    }}
+                    className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-100 transition flex items-center gap-2"
+                  >
+                    <div className="h-8 w-8 flex items-center justify-center rounded-full bg-sky-500 text-white text-xs font-semibold">
+                      {getUserInitial()}
+                    </div>
+                    <span className="font-medium">Ver Perfil</span>
+                  </button>
+                  
+                  <hr className="my-2 border-slate-200" />
+                  
+                  <button
+                    onClick={handleLogout}
+                    className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 transition font-medium"
+                  >
+                    Cerrar Sesión
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </header>

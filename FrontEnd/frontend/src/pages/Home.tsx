@@ -18,7 +18,13 @@ export default function HomePage() {
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const [eventoAEliminar, setEventoAEliminar] = useState<EventoBackend | null>(null);
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
+
+  // Obtener la primera letra del username para el avatar
+  const getUserInitial = () => {
+    if (!user?.username) return "U";
+    return user.username.charAt(0).toUpperCase();
+  };
 
   const handleLogout = async () => {
     console.log('🚪 [Home] Logout iniciado');
@@ -111,7 +117,7 @@ export default function HomePage() {
               onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
               className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-500 text-white text-sm font-semibold hover:bg-sky-600 transition"
             >
-              AL
+              {getUserInitial()}
             </button>
 
             {/* Dropdown Menu */}
@@ -133,7 +139,7 @@ export default function HomePage() {
                     className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-100 transition flex items-center gap-2"
                   >
                     <div className="h-8 w-8 flex items-center justify-center rounded-full bg-sky-500 text-white text-xs font-semibold">
-                      AL
+                      {getUserInitial()}
                     </div>
                     <span className="font-medium">Ver Perfil</span>
                   </button>
@@ -154,10 +160,9 @@ export default function HomePage() {
       </header>
 
       <section className="px-6 py-8 text-center">
-        <p className="text-xs uppercase tracking-[0.35em] text-slate-400">Panel Principal</p>
         <h1 className="mt-4 text-2xl font-semibold tracking-wide text-slate-900">Lista de eventos</h1>
         <p className="mt-2 text-sm text-slate-500">
-          {hasEvents ? "Selecciona un evento para ver los detalles." : "No hay eventos activos por el momento. Puedes registrar uno nuevo."}
+          {hasEvents ? "Selecciona un evento para ver los gastos realizados." : "No hay eventos activos por el momento. Puedes registrar uno nuevo."}
         </p>
       </section>
 
@@ -303,11 +308,11 @@ export default function HomePage() {
                   >
                     <div className="h-8 w-8 flex items-center justify-center rounded-lg bg-purple-100">
                       <div className="flex h-full w-full items-center justify-center rounded-lg bg-sky-500 text-white text-xs font-semibold">
-                        AL
+                        {getUserInitial()}
                       </div>
                     </div>
                     <div className="flex flex-col">
-                      <span className="font-medium text-slate-700">Ann Lee</span>
+                      <span className="font-medium text-slate-700">{user?.name || user?.username || 'Usuario'}</span>
                       <span className="text-xs text-slate-500">Ver perfil</span>
                     </div>
                     <ArrowRight className="h-4 w-4 text-slate-400 ml-auto" />

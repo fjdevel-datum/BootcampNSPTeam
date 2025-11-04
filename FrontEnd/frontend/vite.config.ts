@@ -138,8 +138,15 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
+      // Proxy para subir/descargar archivos de gastos (puerto 8080 - OCR Service)
+      // Regex: /api/gastos/{cualquier-numero}/archivo
+      '^/api/gastos/\\d+/archivo': {
+        target: ocrTarget,
+        changeOrigin: true,
+        secure: false,
+      },
       // Proxy para el backend principal (puerto 8081)
-      // IMPORTANTE: Este debe ir después de /api/ocr para que no lo sobrescriba
+      // IMPORTANTE: Este debe ir después de las rutas específicas
       '/api': {
         target: backendTarget,
         changeOrigin: true,

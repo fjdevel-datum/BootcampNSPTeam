@@ -3,7 +3,7 @@
  * Provee estado global de autenticación y métodos para login/logout
  */
 
-import { createContext, useState, useEffect, type ReactNode } from 'react';
+import { createContext, useState, useEffect, useContext, type ReactNode } from 'react';
 import type { AuthState, LoginCredentials } from '../types/auth';
 import * as authService from '../services/authService';
 
@@ -15,6 +15,14 @@ export interface AuthContextType extends AuthState {
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [authState, setAuthState] = useState<AuthState>({

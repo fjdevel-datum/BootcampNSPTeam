@@ -75,9 +75,6 @@ export default function TarjetasPage() {
           <CreditCard className="h-6 w-6 text-sky-600" />
           <h1 className="text-2xl font-bold text-slate-900">Mis Tarjetas</h1>
         </div>
-        <p className="text-sm text-slate-500">
-          Gestiona tus tarjetas corporativas para gastos de viaje
-        </p>
       </div>
 
       {/* Contenido */}
@@ -226,9 +223,8 @@ export default function TarjetasPage() {
                   <li>
                     • Las tarjetas corporativas están vinculadas a tu cuenta empresarial
                   </li>
-                  <li>• Solo puedes usar tarjetas autorizadas para gastos de viaje</li>
-                  <li>• Contacta a Finanzas para solicitar una nueva tarjeta</li>
-                  <li>• Los gastos se reportan automáticamente a tu supervisor</li>
+                  <li>• Solo puedes usar las tarjetas para gastos autorizados</li>
+                  <li>• En caso de extravío, notificar el incidente a Chief Administrative Officer junto al número de gestión del banco emisor de la tarjeta de crédito. </li>
                 </ul>
               </div>
             </>

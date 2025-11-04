@@ -53,7 +53,7 @@ public class LlmService {
           + "- Los nombres de los campos deben ser exactamente los mostrados arriba\n"
           + "- Ejemplos de formatos aceptados:\n"
           + "  MontoTotal: debe ser número sin símbolo de moneda (ej: '25.00' o '1215.00' o '17.70') no omitas los ceros de la derecha, usa la palabra 'total' como referencia para identificar el total\n"
-          + "  Fecha: puede ser en formato '21/09/25' cada vez que apararezca (03:33PM) o algo similar toma como el año actual, si el formato viene en ingles mes/dia/año (04/22/25) pasala a español dia/mes/año (22/04/25)\n"
+          + "  Fecha: puede ser en formato '21/09/25' cada vez que apararezca (03:33PM) o algo similar toma como el año actual, si el formato viene en ingles mes/dia/año (04/22/25) pasala a español dia/mes/año (22/04/25), revisa muy bien la fecha que sea la misma que recibes del ocr\n"
           + "  NombreEmpresa: solo el nombre principal, sin sucursales\n"
           + "  Descripcion: breve descripción de la transacción\n\n"
           + "Ejemplo de respuesta esperada:\n"

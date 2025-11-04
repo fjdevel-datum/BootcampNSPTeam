@@ -35,6 +35,7 @@ const DEFAULT_FORM: GastoFormData = {
   descripcion: "",
   montoTotal: "",
   fecha: "",
+  moneda: "USD", // Valor por defecto
   idCategoria: "",
   idTarjeta: undefined,
 };
@@ -236,11 +237,17 @@ export default function GastoForm({
       return;
     }
 
+    if (!formData.moneda) {
+      setError("Debes seleccionar una moneda.");
+      return;
+    }
+
     const sanitized: GastoFormData = {
       nombreEmpresa: formData.nombreEmpresa.trim(),
       descripcion: formData.descripcion.trim(),
       montoTotal: amount,
       fecha: formData.fecha,
+      moneda: formData.moneda,
       idCategoria: formData.idCategoria,
       idTarjeta: formData.idTarjeta,
     };
@@ -377,6 +384,24 @@ export default function GastoForm({
                     disabled={isAnalyzing || isSaving}
                     className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent disabled:bg-slate-100 disabled:text-slate-500"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Moneda <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={formData.moneda}
+                    onChange={handleChange("moneda")}
+                    disabled={isAnalyzing || isSaving}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent disabled:bg-slate-100 disabled:text-slate-500"
+                  >
+                    <option value="USD">🇺🇸 Dólar estadounidense (USD)</option>
+                    <option value="GTQ">🇬🇹 Quetzal guatemalteco (GTQ)</option>
+                    <option value="HNL">🇭🇳 Lempira hondureño (HNL)</option>
+                    <option value="PAB">🇵🇦 Balboa panameño (PAB)</option>
+                    <option value="EUR">🇪🇺 Euro (EUR)</option>
+                  </select>
                 </div>
 
                 <div>

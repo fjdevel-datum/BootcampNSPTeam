@@ -196,7 +196,7 @@ export function buildPayloadFromFormData(formData: GastoFormData) {
     Fecha: formData.fecha,
     IdCategoria: formData.idCategoria ? Number.parseInt(formData.idCategoria, 10) : undefined,
     IdTarjeta: formData.idTarjeta ? Number.parseInt(formData.idTarjeta, 10) : undefined,
-    Moneda: "USD", // Por defecto USD hasta implementar selector de moneda
+    Moneda: formData.moneda || "USD", // Usar la moneda seleccionada por el usuario
   };
 }
 
@@ -224,6 +224,7 @@ function mapToFormData(parsed: Record<string, unknown> | null): GastoFormData {
       descripcion: "",
       montoTotal: "",
       fecha: "",
+      moneda: "USD", // Valor por defecto
       idCategoria: "",
       idTarjeta: undefined,
     };
@@ -239,6 +240,7 @@ function mapToFormData(parsed: Record<string, unknown> | null): GastoFormData {
     descripcion: pickString(parsed, ["Descripcion", "Descripci\u00f3n", "descripcion"]),
     montoTotal: normalizeAmount(pick(parsed, ["MontoTotal", "Monto Total", "montoTotal"])),
     fecha: normalizeDate(pick(parsed, ["Fecha", "fecha"])),
+    moneda: pickString(parsed, ["Moneda", "moneda", "Currency"]) || "USD", // Extraer moneda del LLM
     idCategoria: "",
     idTarjeta: undefined,
   };

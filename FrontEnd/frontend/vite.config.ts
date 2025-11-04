@@ -4,7 +4,8 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react-swc'
 import { VitePWA } from 'vite-plugin-pwa'
 
-const backendTarget = process.env.VITE_PROXY_BACKEND ?? 'http://localhost:8080'
+const backendTarget = process.env.VITE_PROXY_BACKEND ?? 'http://localhost:8081' // Backend principal
+const ocrTarget = process.env.VITE_PROXY_OCR ?? 'http://localhost:8080' // Servicio OCR
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -131,6 +132,14 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     proxy: {
+      // Proxy para el servicio OCR (puerto 8080)
+      '/api/ocr': {
+        target: ocrTarget,
+        changeOrigin: true,
+        secure: false,
+      },
+      // Proxy para el backend principal (puerto 8081)
+      // IMPORTANTE: Este debe ir después de /api/ocr para que no lo sobrescriba
       '/api': {
         target: backendTarget,
         changeOrigin: true,

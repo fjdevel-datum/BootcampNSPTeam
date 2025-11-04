@@ -11,15 +11,21 @@ import {
   CreditCard,
   Download,
   ExternalLink,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { ChangeEvent, FormEvent } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { defaultEventData, type EventoBackend } from "../types/event";
 import { dataUrlToFile, downloadGastoFile } from "../services/ocr";
 import { eventosService } from "../services/eventos";
 import { useAuth } from "../context/AuthContext";
 import { gastosService } from "../services/gastos";
-import type { GastoBackend } from "../types/gasto";
+import type { ActualizarGastoPayload, GastoBackend } from "../types/gasto";
+import { obtenerCategorias, type CategoriaGasto } from "../services/categorias";
+import { obtenerMisTarjetas } from "../services/tarjetas";
+import type { Tarjeta } from "../types/tarjeta";
 
 interface EventLocationState {
   evento?: EventoBackend;
@@ -32,6 +38,18 @@ interface NavigateStatePayload {
   sourceFile: File;
 }
 
+interface EditGastoForm {
+  idGasto: number;
+  descripcion: string;
+  lugar: string;
+  fecha: string;
+  monto: string;
+  moneda: string;
+  idCategoria: string;
+  idTarjeta: string;
+}
+
+const MONEDAS_DISPONIBLES = ["USD", "GTQ", "HNL", "PAB", "EUR"] as const;
 interface PreviewModalData {
   url: string;
   fileName: string;
@@ -59,8 +77,20 @@ export default function EventDetailPage() {
   const [gastoIdEnProceso, setGastoIdEnProceso] = useState<number | null>(null);
   const [previewData, setPreviewData] = useState<PreviewModalData | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editForm, setEditForm] = useState<EditGastoForm | null>(null);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [isDeletingId, setIsDeletingId] = useState<number | null>(null);
+  const [categoriasCatalogo, setCategoriasCatalogo] = useState<CategoriaGasto[]>([]);
+  const [tarjetasCatalogo, setTarjetasCatalogo] = useState<Tarjeta[]>([]);
+  const [catalogoError, setCatalogoError] = useState<string | null>(null);
+  const [isCatalogoLoading, setIsCatalogoLoading] = useState(false);
+  const [accionFeedback, setAccionFeedback] = useState<{ type: "success" | "error"; message: string } | null>(
+    null
+  );
 
-  // Estados para manejo de imágenes y cámara
+  // Estados para manejo de imagenes y camara
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
 
@@ -69,6 +99,7 @@ export default function EventDetailPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const previewUrlRef = useRef<string | null>(null);
+  const feedbackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Obtener la primera letra del username para el avatar
   const getUserInitial = () => {
@@ -76,10 +107,44 @@ export default function EventDetailPage() {
     return user.username.charAt(0).toUpperCase();
   };
 
+  useEffect(() => {
+    let cancelado = false;
+    setIsCatalogoLoading(true);
+    Promise.all([obtenerCategorias(), obtenerMisTarjetas()])
+      .then(([categorias, tarjetas]) => {
+        if (cancelado) {
+          return;
+        }
+        setCategoriasCatalogo(categorias);
+        setTarjetasCatalogo(tarjetas);
+        setCatalogoError(null);
+      })
+      .catch((error) => {
+        if (cancelado) {
+          return;
+        }
+        const message =
+          error instanceof Error
+            ? error.message
+            : "No se pudieron cargar las listas de categorias y tarjetas.";
+        setCatalogoError(message);
+      })
+      .finally(() => {
+        if (!cancelado) {
+          setIsCatalogoLoading(false);
+        }
+      });
+
+    return () => {
+      cancelado = true;
+    };
+  }, []);
+
   const totalGastado = useMemo(
     () =>
       gastos.reduce((acumulado, gasto) => {
-        const monto = Number(gasto.monto ?? 0);
+        const valorBase = gasto.montoUsd ?? gasto.monto ?? 0;
+        const monto = Number(valorBase);
         if (Number.isNaN(monto)) {
           return acumulado;
         }
@@ -182,6 +247,138 @@ export default function EventDetailPage() {
     return numero;
   };
 
+  const normalizarFechaIso = (valor: string | null | undefined) => {
+    if (!valor) {
+      return "";
+    }
+    return valor.split("T")[0];
+  };
+
+  const abrirModalEdicion = (gasto: GastoBackend) => {
+    setEditForm({
+      idGasto: gasto.idGasto,
+      descripcion: gasto.descripcion ?? "",
+      lugar: gasto.lugar ?? "",
+      fecha: normalizarFechaIso(gasto.fecha),
+      monto: gasto.monto != null ? String(gasto.monto) : "",
+      moneda: (gasto.moneda ?? "USD").toUpperCase(),
+      idCategoria: gasto.idCategoria != null ? String(gasto.idCategoria) : "",
+      idTarjeta: gasto.idTarjeta != null ? String(gasto.idTarjeta) : "personal",
+    });
+    setEditError(null);
+    setIsEditModalOpen(true);
+  };
+
+  const cerrarModalEdicion = () => {
+    setIsEditModalOpen(false);
+    setEditForm(null);
+    setEditError(null);
+  };
+
+  const handleEditFieldChange =
+    (field: keyof EditGastoForm) =>
+    (event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+      const value = event.target.value;
+      setEditForm((prev) => (prev ? { ...prev, [field]: value } : prev));
+    };
+
+  const handleSubmitEdicion = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!editForm) {
+      return;
+    }
+
+    const descripcion = editForm.descripcion.trim();
+    const lugar = editForm.lugar.trim();
+    const fecha = editForm.fecha;
+    const moneda = editForm.moneda.trim().toUpperCase();
+    const montoNumber = Number.parseFloat(editForm.monto);
+    const categoriaId = editForm.idCategoria ? Number.parseInt(editForm.idCategoria, 10) : NaN;
+
+    if (!lugar) {
+      setEditError("El lugar es obligatorio.");
+      return;
+    }
+
+    if (!fecha) {
+      setEditError("La fecha es obligatoria.");
+      return;
+    }
+
+    if (!editForm.idCategoria || Number.isNaN(categoriaId)) {
+      setEditError("Selecciona una categoria valida.");
+      return;
+    }
+
+    if (!moneda) {
+      setEditError("Selecciona una moneda valida.");
+      return;
+    }
+
+    if (!Number.isFinite(montoNumber) || montoNumber <= 0) {
+      setEditError("El monto debe ser mayor a cero.");
+      return;
+    }
+
+    const payload: ActualizarGastoPayload = {
+      descripcion: descripcion || null,
+      lugar,
+      fecha,
+      monto: Number(montoNumber.toFixed(2)),
+      moneda,
+      idCategoria: categoriaId,
+    };
+
+    if (editForm.idTarjeta === "personal") {
+      payload.idTarjeta = null;
+      payload.sinTarjeta = true;
+    } else if (editForm.idTarjeta) {
+      payload.idTarjeta = Number.parseInt(editForm.idTarjeta, 10);
+    }
+
+    setIsSavingEdit(true);
+    try {
+      const actualizado = await gastosService.actualizar(editForm.idGasto, payload);
+      setGastos((prev) =>
+        prev.map((g) =>
+          g.idGasto === actualizado.idGasto
+            ? {
+                ...g,
+                ...actualizado,
+                tieneComprobante: actualizado.tieneComprobante ?? g.tieneComprobante,
+              }
+            : g
+        )
+      );
+      showFeedback("success", "Gasto actualizado correctamente.");
+      cerrarModalEdicion();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "No se pudo actualizar el gasto. Intenta nuevamente.";
+      setEditError(message);
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
+  const handleDeleteGasto = async (gasto: GastoBackend) => {
+    if (!window.confirm(`Eliminar el gasto "${gasto.descripcion ?? "sin descripcion"}"?`)) {
+      return;
+    }
+    setIsDeletingId(gasto.idGasto);
+    try {
+      await gastosService.eliminar(gasto.idGasto);
+      setGastos((prev) => prev.filter((item) => item.idGasto !== gasto.idGasto));
+      showFeedback("success", "Gasto eliminado correctamente.");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "No se pudo eliminar el gasto. Intenta nuevamente.";
+      showFeedback("error", message);
+    } finally {
+      setIsDeletingId(null);
+    }
+  };
+
   const openPreviewModal = (data: PreviewModalData) => {
     if (previewUrlRef.current) {
       URL.revokeObjectURL(previewUrlRef.current);
@@ -200,10 +397,24 @@ export default function EventDetailPage() {
     setIsPreviewOpen(false);
   };
 
+  const showFeedback = (type: "success" | "error", message: string) => {
+    if (feedbackTimeoutRef.current) {
+      clearTimeout(feedbackTimeoutRef.current);
+    }
+    setAccionFeedback({ type, message });
+    feedbackTimeoutRef.current = setTimeout(() => {
+      setAccionFeedback(null);
+      feedbackTimeoutRef.current = null;
+    }, 6000);
+  };
+
   useEffect(() => {
     return () => {
       if (previewUrlRef.current) {
         URL.revokeObjectURL(previewUrlRef.current);
+      }
+      if (feedbackTimeoutRef.current) {
+        clearTimeout(feedbackTimeoutRef.current);
       }
     };
   }, []);
@@ -259,10 +470,10 @@ export default function EventDetailPage() {
   };
 
   const handleLogout = async () => {
-    console.log('🚪 [EventDetail] Logout iniciado');
+    console.log("[EventDetail] Logout iniciado");
     await logout();
-    console.log('✅ [EventDetail] Logout completado, redirigiendo...');
-    window.location.href = '/';
+    console.log("[EventDetail] Logout completado, redirigiendo...");
+    window.location.href = "/";
   };
 
   useEffect(() => {
@@ -285,13 +496,13 @@ export default function EventDetailPage() {
         if (encontrado) {
           setEventoSeleccionado(encontrado);
         } else {
-          setEventoError("No se encontró información del evento seleccionado.");
+          setEventoError("No se encontro informacion del evento seleccionado.");
         }
       })
       .catch((error) => {
         console.error("Error al cargar el evento:", error);
         if (!cancelled) {
-          setEventoError("No se pudo cargar la información del evento.");
+          setEventoError("No se pudo cargar la informacion del evento.");
         }
       })
       .finally(() => {
@@ -347,20 +558,20 @@ export default function EventDetailPage() {
 
   const ensureEventoIdentificado = () => {
     if (!idEvento) {
-      alert("No se pudo identificar el evento. Regresa a la lista e inténtalo de nuevo.");
+      alert("No se pudo identificar el evento. Regresa a la lista e intentalo de nuevo.");
       return false;
     }
     return true;
   };
 
-  // Función para abrir la cámara
+  // Funcion para abrir la camara
   const openCamera = async () => {
     if (!ensureEventoIdentificado()) {
       return;
     }
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment" }, // Usa cámara trasera en móviles
+        video: { facingMode: "environment" }, // Usa camara trasera en moviles
       });
       setStream(mediaStream);
       if (videoRef.current) {
@@ -369,11 +580,11 @@ export default function EventDetailPage() {
       setIsCameraOpen(true);
     } catch (error) {
       console.error("Error accessing camera:", error);
-      alert("No se pudo acceder a la cámara. Verifica los permisos.");
+      alert("No se pudo acceder a la camara. Verifica los permisos.");
     }
   };
 
-  // Función para cerrar la cámara
+  // Funcion para cerrar la camara
   const closeCamera = () => {
     if (stream) {
       stream.getTracks().forEach((track) => track.stop());
@@ -398,7 +609,7 @@ export default function EventDetailPage() {
     });
   };
 
-  // Función para capturar foto
+  // Funcion para capturar foto
   const capturePhoto = async () => {
     if (!ensureEventoIdentificado()) {
       return;
@@ -433,7 +644,7 @@ export default function EventDetailPage() {
     }
   };
 
-  // Función para seleccionar archivo
+  // Funcion para seleccionar archivo
   const selectFile = () => {
     if (!ensureEventoIdentificado()) {
       return;
@@ -443,8 +654,8 @@ export default function EventDetailPage() {
     }
   };
 
-  // Función para manejar archivo seleccionado
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+  // Funcion para manejar archivo seleccionado
+  const handleFileSelect = (event: ChangeEvent<HTMLInputElement>) => {
     if (!ensureEventoIdentificado()) {
       return;
     }
@@ -522,7 +733,7 @@ export default function EventDetailPage() {
                     onClick={handleLogout}
                     className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 transition font-medium"
                   >
-                    Cerrar Sesión
+                    Cerrar Sesion
                   </button>
                 </div>
               </>
@@ -533,7 +744,7 @@ export default function EventDetailPage() {
 
       {isLoadingEvento && (
         <div className="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 text-sm text-center">
-          Cargando información del evento...
+          Cargando informacion del evento...
         </div>
       )}
 
@@ -570,7 +781,7 @@ export default function EventDetailPage() {
                 <span className="text-sm text-slate-600">Total Recibido</span>
               </div>
               <p className="text-2xl font-bold text-slate-900">
-                ${financialOverview.totalReceived.toFixed(2)}
+                {formatCurrency(financialOverview.totalReceived, "USD")}
               </p>
             </div>
 
@@ -581,7 +792,7 @@ export default function EventDetailPage() {
                 <span className="text-sm text-slate-600">Gastado</span>
               </div>
               <p className="text-2xl font-bold text-slate-900">
-                ${financialOverview.totalSpent.toFixed(2)}
+                {formatCurrency(financialOverview.totalSpent, "USD")}
               </p>
             </div>
 
@@ -592,7 +803,7 @@ export default function EventDetailPage() {
                 <span className="text-sm text-slate-600">Restante</span>
               </div>
               <p className="text-2xl font-bold text-slate-900">
-                ${financialOverview.remaining.toFixed(2)}
+                {formatCurrency(financialOverview.remaining, "USD")}
               </p>
             </div>
           </div>
@@ -607,6 +818,18 @@ export default function EventDetailPage() {
             <h3 className="text-lg font-semibold text-slate-900">Historial de transacciones</h3>
           </div>
 
+          {accionFeedback && (
+            <div
+              className={`mb-4 rounded-lg border px-3 py-2 text-sm ${
+                accionFeedback.type === "success"
+                  ? "border-emerald-300 bg-emerald-50 text-emerald-800"
+                  : "border-red-300 bg-red-50 text-red-700"
+              }`}
+            >
+              {accionFeedback.message}
+            </div>
+          )}
+
           {isLoadingGastos ? (
             <p className="text-center text-slate-500 py-8">
               Cargando gastos del evento...
@@ -620,8 +843,10 @@ export default function EventDetailPage() {
           ) : (
             <div className="space-y-4">
               {gastos.map((gasto) => {
-                const monto = Number(gasto.monto ?? 0);
+                const montoOriginal = gasto.monto ?? 0;
                 const moneda = gasto.moneda || "USD";
+                const montoFormateado = formatCurrency(montoOriginal, moneda);
+                const fechaLegible = formatFecha(gasto.fecha);
                 return (
                   <div
                     key={gasto.idGasto}
@@ -635,16 +860,16 @@ export default function EventDetailPage() {
                         <p className="text-base font-semibold text-slate-900">
                           {gasto.descripcion && gasto.descripcion.trim()
                             ? gasto.descripcion
-                            : "Gasto sin descripción"}
+                            : "Gasto sin descripcion"}
                         </p>
                         <p className="text-base font-bold text-slate-900">
-                          {formatCurrency(monto, moneda)}
+                          {montoFormateado}
                         </p>
                       </div>
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500 md:text-sm">
                         <span className="inline-flex items-center gap-1">
                           <CalendarDays className="h-4 w-4" />
-                          {formatFecha(gasto.fecha)}
+                          {fechaLegible}
                         </span>
                         <span className="inline-flex items-center gap-1">
                           <MapPin className="h-4 w-4" />
@@ -672,6 +897,28 @@ export default function EventDetailPage() {
                           <Loader2 className="h-5 w-5 animate-spin" />
                         ) : (
                           <Eye className="h-5 w-5" />
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => abrirModalEdicion(gasto)}
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-600 transition hover:border-amber-500 hover:text-amber-600 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300"
+                        title="Editar gasto"
+                        disabled={isDeletingId === gasto.idGasto}
+                      >
+                        <Pencil className="h-5 w-5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteGasto(gasto)}
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-600 transition hover:border-red-500 hover:text-red-600 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300"
+                        title="Eliminar gasto"
+                        disabled={isDeletingId === gasto.idGasto}
+                      >
+                        {isDeletingId === gasto.idGasto ? (
+                          <Loader2 className="h-5 w-5 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-5 w-5" />
                         )}
                       </button>
                     </div>
@@ -708,7 +955,7 @@ export default function EventDetailPage() {
                 />
               ) : (
                 <div className="py-16 text-center text-sm text-slate-500">
-                  Este comprobante no es una imagen. Descárgalo para revisarlo.
+                  Este comprobante no es una imagen. Descargalo para revisarlo.
                 </div>
               )}
             </div>
@@ -719,7 +966,7 @@ export default function EventDetailPage() {
                 className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 transition hover:border-sky-500 hover:text-sky-600"
               >
                 <ExternalLink className="h-4 w-4" />
-                Abrir en pestaña
+                Abrir en pestana
               </button>
               <button
                 onClick={handleDownloadPreview}
@@ -739,6 +986,157 @@ export default function EventDetailPage() {
         </div>
       )}
 
+      {isEditModalOpen && editForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-semibold text-slate-900">Editar gasto</h3>
+                <p className="text-xs text-slate-500">ID #{editForm.idGasto}</p>
+              </div>
+              <button
+                onClick={cerrarModalEdicion}
+                className="rounded-full p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {catalogoError && (
+              <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+                {catalogoError}
+              </div>
+            )}
+
+            {editError && (
+              <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+                {editError}
+              </div>
+            )}
+
+            {isCatalogoLoading && (
+              <p className="mb-3 text-xs text-slate-500">Actualizando catalogos...</p>
+            )}
+
+            <form onSubmit={handleSubmitEdicion} className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <label className="flex flex-col gap-1 text-sm font-medium text-slate-700">
+                  Descripcion
+                  <input
+                    type="text"
+                    value={editForm.descripcion}
+                    onChange={handleEditFieldChange("descripcion")}
+                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
+                    placeholder="Motivo del gasto"
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-sm font-medium text-slate-700">
+                  Lugar
+                  <input
+                    type="text"
+                    value={editForm.lugar}
+                    onChange={handleEditFieldChange("lugar")}
+                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
+                    placeholder="Ej. Restaurante"
+                    required
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-sm font-medium text-slate-700">
+                  Fecha
+                  <input
+                    type="date"
+                    value={editForm.fecha}
+                    onChange={handleEditFieldChange("fecha")}
+                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
+                    required
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-sm font-medium text-slate-700">
+                  Monto
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={editForm.monto}
+                    onChange={handleEditFieldChange("monto")}
+                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
+                    required
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-sm font-medium text-slate-700">
+                  Moneda
+                  <select
+                    value={editForm.moneda}
+                    onChange={handleEditFieldChange("moneda")}
+                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
+                    required
+                  >
+                    {MONEDAS_DISPONIBLES.map((mon) => (
+                      <option key={mon} value={mon}>
+                        {mon}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="flex flex-col gap-1 text-sm font-medium text-slate-700">
+                  Categoria
+                  <select
+                    value={editForm.idCategoria}
+                    onChange={handleEditFieldChange("idCategoria")}
+                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
+                    required
+                    disabled={isCatalogoLoading}
+                  >
+                    <option value="">Selecciona una categoria</option>
+                    {categoriasCatalogo.map((categoria) => (
+                      <option key={categoria.idCategoria} value={categoria.idCategoria}>
+                        {categoria.nombreCategoria}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="flex flex-col gap-1 text-sm font-medium text-slate-700">
+                  Tarjeta
+                  <select
+                    value={editForm.idTarjeta}
+                    onChange={handleEditFieldChange("idTarjeta")}
+                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
+                    disabled={isCatalogoLoading}
+                  >
+                    <option value="personal">Tarjeta personal</option>
+                    {tarjetasCatalogo.map((tarjeta) => {
+                      const ultimos = tarjeta.numeroTarjeta?.slice(-4) ?? "";
+                      return (
+                        <option key={tarjeta.idTarjeta} value={tarjeta.idTarjeta}>
+                          Tarjeta {ultimos} - {tarjeta.banco}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </label>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={cerrarModalEdicion}
+                  className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 transition hover:border-slate-400 hover:text-slate-700"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-80"
+                  disabled={isSavingEdit}
+                >
+                  {isSavingEdit ? <Loader2 className="h-4 w-4 animate-spin" /> : <Pencil className="h-4 w-4" />}
+                  Guardar cambios
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
       {/* Action Buttons - Para tomar fotos */}
       <div className="fixed bottom-6 right-6 flex flex-col gap-3">
         <button
@@ -766,7 +1164,7 @@ export default function EventDetailPage() {
         className="hidden"
       />
 
-      {/* Modal de Cámara */}
+      {/* Modal de Camara */}
       {isCameraOpen && (
         <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center">
           <div className="w-full max-w-2xl mx-4">
@@ -782,7 +1180,7 @@ export default function EventDetailPage() {
                 </button>
               </div>
 
-              {/* Vista previa de la cámara */}
+              {/* Vista previa de la camara */}
               <div className="relative bg-slate-900 rounded-lg overflow-hidden mb-4">
                 <video
                   ref={videoRef}
@@ -793,7 +1191,7 @@ export default function EventDetailPage() {
                 />
               </div>
 
-              {/* Botones de acción */}
+              {/* Botones de accion */}
               <div className="flex gap-4 justify-center">
                 <button
                   onClick={closeCamera}
@@ -817,7 +1215,7 @@ export default function EventDetailPage() {
         </div>
       )}
 
-      {/* Botón REGRESAR */}
+      {/* Boton REGRESAR */}
       <div className="px-6 pb-8">
         <div className="max-w-2xl mx-auto">
           <button
@@ -831,9 +1229,4 @@ export default function EventDetailPage() {
     </main>
   );
 }
-
-
-
-
-
 

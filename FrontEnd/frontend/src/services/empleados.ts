@@ -1,11 +1,16 @@
-/**
+﻿/**
  * Servicio para gestionar empleados desde el panel de administracion.
  */
 
+import { API_BASE_URL } from "../config/constants";
+import type {
+  ActualizarPerfilPayload,
+  CrearEmpleadoPayload,
+  EmpleadoResponse,
+  PerfilEmpleado,
+  UsuarioAdmin,
+} from "../types/empleado";
 import { getValidAccessToken } from "./authService";
-import type { CrearEmpleadoPayload, EmpleadoResponse, UsuarioAdmin, PerfilEmpleado, ActualizarPerfilPayload } from "../types/empleado";
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8081";
 
 /**
  * Obtiene el perfil del empleado autenticado.
@@ -17,7 +22,7 @@ export async function obtenerPerfil(): Promise<PerfilEmpleado> {
     throw new Error("No hay sesion activa. Por favor inicia sesion.");
   }
 
-  const response = await fetch(`${API_BASE_URL}/api/empleados/perfil`, {
+  const response = await fetch(`${API_BASE_URL}/empleados/perfil`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
@@ -43,7 +48,7 @@ export async function actualizarPerfil(payload: ActualizarPerfilPayload): Promis
     throw new Error("No hay sesion activa. Por favor inicia sesion.");
   }
 
-  const response = await fetch(`${API_BASE_URL}/api/empleados/perfil`, {
+  const response = await fetch(`${API_BASE_URL}/empleados/perfil`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
@@ -82,7 +87,7 @@ export async function crearEmpleado(payload: CrearEmpleadoPayload): Promise<Empl
     throw new Error("No hay sesion activa. Por favor inicia sesion.");
   }
 
-  const response = await fetch(`${API_BASE_URL}/api/empleados`, {
+  const response = await fetch(`${API_BASE_URL}/empleados`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -119,7 +124,7 @@ export async function listarEmpleados(): Promise<UsuarioAdmin[]> {
     throw new Error("No hay sesion activa. Por favor inicia sesion.");
   }
 
-  const response = await fetch(`${API_BASE_URL}/api/empleados`, {
+  const response = await fetch(`${API_BASE_URL}/empleados`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",

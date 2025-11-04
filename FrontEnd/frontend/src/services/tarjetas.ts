@@ -1,11 +1,10 @@
-/**
+﻿/**
  * Servicio para gestionar tarjetas corporativas
  */
 
+import { API_BASE_URL } from "../config/constants";
+import type { AsignarTarjetaRequest, Tarjeta, TarjetaRequest } from "../types/tarjeta";
 import { getValidAccessToken } from "./authService";
-import type { Tarjeta, TarjetaRequest, AsignarTarjetaRequest } from "../types/tarjeta";
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8081";
 
 /**
  * Obtiene todas las tarjetas corporativas registradas.
@@ -17,7 +16,7 @@ export async function listarTarjetas(): Promise<Tarjeta[]> {
     throw new Error("No hay sesión activa. Por favor inicia sesión.");
   }
 
-  const response = await fetch(`${API_BASE_URL}/api/tarjetas`, {
+  const response = await fetch(`${API_BASE_URL}/tarjetas`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
@@ -43,7 +42,7 @@ export async function obtenerMisTarjetas(): Promise<Tarjeta[]> {
     throw new Error("No hay sesión activa. Por favor inicia sesión.");
   }
 
-  const response = await fetch(`${API_BASE_URL}/api/tarjetas/mis-tarjetas`, {
+  const response = await fetch(`${API_BASE_URL}/tarjetas/mis-tarjetas`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
@@ -69,7 +68,7 @@ export async function crearTarjeta(payload: TarjetaRequest): Promise<Tarjeta> {
     throw new Error("No hay sesión activa. Por favor inicia sesión.");
   }
 
-  const response = await fetch(`${API_BASE_URL}/api/tarjetas`, {
+  const response = await fetch(`${API_BASE_URL}/tarjetas`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -109,7 +108,7 @@ export async function asignarTarjeta(payload: AsignarTarjetaRequest): Promise<Ta
     throw new Error("No hay sesión activa. Por favor inicia sesión.");
   }
 
-  const response = await fetch(`${API_BASE_URL}/api/tarjetas/asignar`, {
+  const response = await fetch(`${API_BASE_URL}/tarjetas/asignar`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
@@ -149,7 +148,7 @@ export async function eliminarTarjeta(idTarjeta: number): Promise<void> {
     throw new Error("No hay sesión activa. Por favor inicia sesión.");
   }
 
-  const response = await fetch(`${API_BASE_URL}/api/tarjetas/${idTarjeta}`, {
+  const response = await fetch(`${API_BASE_URL}/tarjetas/${idTarjeta}`, {
     method: "DELETE",
     headers: {
       Authorization: `Bearer ${token}`,

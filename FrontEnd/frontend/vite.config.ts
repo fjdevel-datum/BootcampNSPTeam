@@ -4,28 +4,34 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react-swc'
 import { VitePWA } from 'vite-plugin-pwa'
 
-const backendTarget = process.env.VITE_PROXY_BACKEND ?? 'http://localhost:8081' // Backend principal
-const ocrTarget = process.env.VITE_PROXY_OCR ?? 'http://localhost:8080' // Servicio OCR
+const backendTarget = process.env.VITE_PROXY_BACKEND ?? 'http://localhost:8081'
+const ocrTarget = process.env.VITE_PROXY_OCR ?? 'http://localhost:8080'
 
-// https://vite.dev/config/
 export default defineConfig({
   plugins: [
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['vite.svg', 'datumredsoft.png', 'google.png'],
-      
+      includeAssets: [
+        'vite.svg',
+        'datumredsoft.png',
+        'apple-touch-icon.png',
+        'offline.html'
+      ],
       manifest: {
-        name: 'Datum Travels - Gestión de Gastos',
-        short_name: 'Datum Travels',
-        description: 'Sistema de gestión de gastos y viáticos para empleados de Datum',
-        theme_color: '#0c4a6e', // Color de tu tema (sky-900)
-        background_color: '#1b2024',
+        name: 'ViaticosDatum',
+        short_name: 'ViaticosDatum',
+        description: 'Gestiona tus viaticos y gastos corporativos desde cualquier lugar.',
+        theme_color: '#0f172a',
+        background_color: '#0f172a',
         display: 'standalone',
+        display_override: ['standalone', 'fullscreen', 'minimal-ui'],
         orientation: 'portrait',
         scope: '/',
         start_url: '/',
-        
+        lang: 'es',
+        dir: 'ltr',
+        categories: ['business', 'finance', 'productivity'],
         icons: [
           {
             src: '/pwa-192x192.png',
@@ -40,21 +46,17 @@ export default defineConfig({
             purpose: 'any'
           },
           {
-            src: '/pwa-512x512.png',
+            src: '/pwa-maskable-512x512.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'maskable'
           }
-        ],
-        
-        // Configuración adicional para mejor experiencia
-        categories: ['business', 'finance', 'productivity'],
-        lang: 'es-SV',
-        dir: 'ltr',
+        ]
       },
-      
       workbox: {
-        // Estrategias de caché
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
+        skipWaiting: true,
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
@@ -63,7 +65,7 @@ export default defineConfig({
               cacheName: 'google-fonts-cache',
               expiration: {
                 maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24 * 365 // 1 año
+                maxAgeSeconds: 60 * 60 * 24 * 365
               },
               cacheableResponse: {
                 statuses: [0, 200]
@@ -77,7 +79,7 @@ export default defineConfig({
               cacheName: 'gstatic-fonts-cache',
               expiration: {
                 maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24 * 365 // 1 año
+                maxAgeSeconds: 60 * 60 * 24 * 365
               },
               cacheableResponse: {
                 statuses: [0, 200]
@@ -90,20 +92,92 @@ export default defineConfig({
             options: {
               cacheName: 'images-cache',
               expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 60 * 60 * 24 * 30 // 30 días
+                maxEntries: 60,
+                maxAgeSeconds: 60 * 60 * 24 * 30
+              }
+            }
+          },
+          {
+            urlPattern: /\/api\/eventos(\/.*)?$/i,
+            handler: 'NetworkFirst',
+            method: 'GET',
+            options: {
+              cacheName: 'eventos-cache',
+              networkTimeoutSeconds: 8,
+              expiration: {
+                maxEntries: 40,
+                maxAgeSeconds: 60 * 30
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            }
+          },
+          {
+            urlPattern: /\/api\/gastos(\/.*)?$/i,
+            handler: 'NetworkFirst',
+            method: 'GET',
+            options: {
+              cacheName: 'gastos-cache',
+              networkTimeoutSeconds: 8,
+              expiration: {
+                maxEntries: 40,
+                maxAgeSeconds: 60 * 30
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            }
+          },
+          {
+            urlPattern: /\/api\/gastos(\/.*)?$/i,
+            handler: 'NetworkOnly',
+            method: 'POST',
+            options: {
+              backgroundSync: {
+                name: 'gastos-post-queue',
+                options: {
+                  maxRetentionTime: 24 * 60
+                }
+              }
+            }
+          },
+          {
+            urlPattern: /\/api\/gastos\/\d+$/i,
+            handler: 'NetworkOnly',
+            method: 'PUT',
+            options: {
+              backgroundSync: {
+                name: 'gastos-put-queue',
+                options: {
+                  maxRetentionTime: 24 * 60
+                }
+              }
+            }
+          },
+          {
+            urlPattern: /\/api\/gastos\/\d+$/i,
+            handler: 'NetworkOnly',
+            method: 'DELETE',
+            options: {
+              backgroundSync: {
+                name: 'gastos-delete-queue',
+                options: {
+                  maxRetentionTime: 24 * 60
+                }
               }
             }
           },
           {
             urlPattern: /\/api\/.*/i,
             handler: 'NetworkFirst',
+            method: 'GET',
             options: {
               cacheName: 'api-cache',
               networkTimeoutSeconds: 10,
               expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 60 * 5 // 5 minutos
+                maxEntries: 80,
+                maxAgeSeconds: 60 * 10
               },
               cacheableResponse: {
                 statuses: [0, 200]
@@ -111,47 +185,36 @@ export default defineConfig({
             }
           }
         ],
-        
-        // Archivos a cachear al instalar
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-        
-        // Ignorar ciertas rutas
         navigateFallback: 'index.html',
-        navigateFallbackDenylist: [/^\/api/],
+        navigateFallbackDenylist: [/^\/api/]
       },
-      
       devOptions: {
-        enabled: true, // Habilitar en desarrollo para pruebas
+        enabled: true,
         type: 'module'
       }
     })
   ],
-  
   server: {
     host: '0.0.0.0',
     port: 5173,
     strictPort: true,
     proxy: {
-      // Proxy para el servicio OCR (puerto 8080)
       '/api/ocr': {
         target: ocrTarget,
         changeOrigin: true,
-        secure: false,
+        secure: false
       },
-      // Proxy para subir/descargar archivos de gastos (puerto 8080 - OCR Service)
-      // Regex: /api/gastos/{cualquier-numero}/archivo
       '^/api/gastos/\\d+/archivo': {
         target: ocrTarget,
         changeOrigin: true,
-        secure: false,
+        secure: false
       },
-      // Proxy para el backend principal (puerto 8081)
-      // IMPORTANTE: Este debe ir después de las rutas específicas
       '/api': {
         target: backendTarget,
         changeOrigin: true,
-        secure: false,
-      },
-    },
-  },
+        secure: false
+      }
+    }
+  }
 })

@@ -1,15 +1,14 @@
-/**
+﻿/**
  * Servicio para gestionar países
  */
 
+import { API_BASE_URL } from "../config/constants";
 import { getValidAccessToken } from "./authService";
 
 export interface Pais {
   idPais: number;
   nombrePais: string;
 }
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8081";
 
 /**
  * Obtiene todos los países disponibles.
@@ -21,7 +20,7 @@ export async function listarPaises(): Promise<Pais[]> {
     throw new Error("No hay sesión activa. Por favor inicia sesión.");
   }
 
-  const response = await fetch(`${API_BASE_URL}/api/paises`, {
+  const response = await fetch(`${API_BASE_URL}/paises`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",

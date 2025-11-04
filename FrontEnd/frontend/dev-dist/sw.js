@@ -67,7 +67,7 @@ if (!self.define) {
     });
   };
 }
-define(['./workbox-47da91e0'], (function (workbox) { 'use strict';
+define(['./workbox-041f2bd8'], (function (workbox) { 'use strict';
 
   self.skipWaiting();
   workbox.clientsClaim();
@@ -82,7 +82,7 @@ define(['./workbox-47da91e0'], (function (workbox) { 'use strict';
     "revision": "3ca0b8505b4bec776b69afdba2768812"
   }, {
     "url": "index.html",
-    "revision": "0.2v3anokn3ko"
+    "revision": "0.g9hs2liaerg"
   }], {});
   workbox.cleanupOutdatedCaches();
   workbox.registerRoute(new workbox.NavigationRoute(workbox.createHandlerBoundToURL("index.html"), {
@@ -110,16 +110,51 @@ define(['./workbox-47da91e0'], (function (workbox) { 'use strict';
   workbox.registerRoute(/\.(?:png|jpg|jpeg|svg|gif|webp)$/i, new workbox.CacheFirst({
     "cacheName": "images-cache",
     plugins: [new workbox.ExpirationPlugin({
-      maxEntries: 50,
+      maxEntries: 60,
       maxAgeSeconds: 2592000
     })]
   }), 'GET');
+  workbox.registerRoute(/\/api\/eventos(\/.*)?$/i, new workbox.NetworkFirst({
+    "cacheName": "eventos-cache",
+    "networkTimeoutSeconds": 8,
+    plugins: [new workbox.ExpirationPlugin({
+      maxEntries: 40,
+      maxAgeSeconds: 1800
+    }), new workbox.CacheableResponsePlugin({
+      statuses: [0, 200]
+    })]
+  }), 'GET');
+  workbox.registerRoute(/\/api\/gastos(\/.*)?$/i, new workbox.NetworkFirst({
+    "cacheName": "gastos-cache",
+    "networkTimeoutSeconds": 8,
+    plugins: [new workbox.ExpirationPlugin({
+      maxEntries: 40,
+      maxAgeSeconds: 1800
+    }), new workbox.CacheableResponsePlugin({
+      statuses: [0, 200]
+    })]
+  }), 'GET');
+  workbox.registerRoute(/\/api\/gastos(\/.*)?$/i, new workbox.NetworkOnly({
+    plugins: [new workbox.BackgroundSyncPlugin("gastos-post-queue", {
+      maxRetentionTime: 1440
+    })]
+  }), 'POST');
+  workbox.registerRoute(/\/api\/gastos\/\d+$/i, new workbox.NetworkOnly({
+    plugins: [new workbox.BackgroundSyncPlugin("gastos-put-queue", {
+      maxRetentionTime: 1440
+    })]
+  }), 'PUT');
+  workbox.registerRoute(/\/api\/gastos\/\d+$/i, new workbox.NetworkOnly({
+    plugins: [new workbox.BackgroundSyncPlugin("gastos-delete-queue", {
+      maxRetentionTime: 1440
+    })]
+  }), 'DELETE');
   workbox.registerRoute(/\/api\/.*/i, new workbox.NetworkFirst({
     "cacheName": "api-cache",
     "networkTimeoutSeconds": 10,
     plugins: [new workbox.ExpirationPlugin({
-      maxEntries: 50,
-      maxAgeSeconds: 300
+      maxEntries: 80,
+      maxAgeSeconds: 600
     }), new workbox.CacheableResponsePlugin({
       statuses: [0, 200]
     })]

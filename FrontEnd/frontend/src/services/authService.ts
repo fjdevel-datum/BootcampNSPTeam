@@ -1,6 +1,6 @@
-/**
- * Servicio de autenticación con Keycloak
- * Maneja login, logout, refresh de tokens y comunicación con Keycloak
+﻿/**
+ * Servicio de autenticaciÃ³n con Keycloak
+ * Maneja login, logout, refresh de tokens y comunicaciÃ³n con Keycloak
  */
 
 import type { 
@@ -9,9 +9,9 @@ import type {
   User 
 } from '../types/auth';
 import { decodeJWT, isTokenExpired } from '../utils/jwtDecoder';
-import { KEYCLOAK_CONFIG, STORAGE_KEYS } from '../config/constants';
+import { API_BASE_URL, KEYCLOAK_CONFIG, STORAGE_KEYS } from '../config/constants';
 
-// Configuración de Keycloak
+// ConfiguraciÃ³n de Keycloak
 const { url: KEYCLOAK_URL, realm: REALM, clientId: CLIENT_ID } = KEYCLOAK_CONFIG;
 const TOKEN_ENDPOINT = `${KEYCLOAK_URL}/realms/${REALM}/protocol/openid-connect/token`;
 const LOGOUT_ENDPOINT = `${KEYCLOAK_URL}/realms/${REALM}/protocol/openid-connect/logout`;
@@ -25,7 +25,7 @@ const { accessToken: ACCESS_TOKEN_KEY, refreshToken: REFRESH_TOKEN_KEY } = STORA
  */
 async function syncUserWithBackend(accessToken: string): Promise<void> {
   try {
-    const response = await fetch('http://localhost:8081/api/user/sync', {
+    const response = await fetch(`${API_BASE_URL}/user/sync`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
@@ -35,13 +35,13 @@ async function syncUserWithBackend(accessToken: string): Promise<void> {
 
     if (response.ok) {
       const data = await response.json();
-      console.log('✅ Usuario sincronizado con backend:', data);
+      console.log('âœ… Usuario sincronizado con backend:', data);
     } else {
-      console.warn('⚠️ No se pudo sincronizar usuario con backend');
+      console.warn('âš ï¸ No se pudo sincronizar usuario con backend');
     }
   } catch (error) {
-    console.error('❌ Error al sincronizar usuario:', error);
-    // No bloquear el login si falla la sincronización
+    console.error('âŒ Error al sincronizar usuario:', error);
+    // No bloquear el login si falla la sincronizaciÃ³n
   }
 }
 
@@ -63,7 +63,7 @@ export async function login(credentials: LoginCredentials): Promise<KeycloakToke
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.error_description || 'Credenciales inválidas');
+      throw new Error(error.error_description || 'Credenciales invÃ¡lidas');
     }
 
     const data: KeycloakTokenResponse = await response.json();
@@ -72,7 +72,7 @@ export async function login(credentials: LoginCredentials): Promise<KeycloakToke
     localStorage.setItem(ACCESS_TOKEN_KEY, data.access_token);
     localStorage.setItem(REFRESH_TOKEN_KEY, data.refresh_token);
 
-    // ✨ NUEVO: Sincronizar con backend (vincular keycloak_id)
+    // âœ¨ NUEVO: Sincronizar con backend (vincular keycloak_id)
     await syncUserWithBackend(data.access_token);
 
     return data;
@@ -83,13 +83,13 @@ export async function login(credentials: LoginCredentials): Promise<KeycloakToke
 }
 
 /**
- * Cierra sesión del usuario
+ * Cierra sesiÃ³n del usuario
  */
 export async function logout(): Promise<void> {
   const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
 
-  console.log('🚪 [authService.logout] Iniciando logout...');
-  console.log('🚪 [authService.logout] Tokens ANTES de limpiar:', {
+  console.log('ðŸšª [authService.logout] Iniciando logout...');
+  console.log('ðŸšª [authService.logout] Tokens ANTES de limpiar:', {
     access_token: localStorage.getItem(ACCESS_TOKEN_KEY)?.substring(0, 50) + '...',
     refresh_token: refreshToken?.substring(0, 50) + '...',
   });
@@ -98,7 +98,7 @@ export async function logout(): Promise<void> {
   localStorage.removeItem(ACCESS_TOKEN_KEY);
   localStorage.removeItem(REFRESH_TOKEN_KEY);
 
-  console.log('🧹 [authService.logout] Tokens DESPUÉS de limpiar:', {
+  console.log('ðŸ§¹ [authService.logout] Tokens DESPUÃ‰S de limpiar:', {
     access_token: localStorage.getItem(ACCESS_TOKEN_KEY),
     refresh_token: localStorage.getItem(REFRESH_TOKEN_KEY),
   });
@@ -106,7 +106,7 @@ export async function logout(): Promise<void> {
   // LUEGO intentar hacer logout en Keycloak (en background)
   try {
     if (refreshToken) {
-      console.log('🌐 [authService.logout] Haciendo logout en Keycloak...');
+      console.log('ðŸŒ [authService.logout] Haciendo logout en Keycloak...');
       await fetch(LOGOUT_ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -115,14 +115,14 @@ export async function logout(): Promise<void> {
           refresh_token: refreshToken,
         }),
       });
-      console.log('✅ [authService.logout] Logout en Keycloak exitoso');
+      console.log('âœ… [authService.logout] Logout en Keycloak exitoso');
     }
   } catch (error) {
-    console.error('❌ [authService.logout] Error al hacer logout en Keycloak:', error);
-    // No importa si falla, los tokens ya están eliminados localmente
+    console.error('âŒ [authService.logout] Error al hacer logout en Keycloak:', error);
+    // No importa si falla, los tokens ya estÃ¡n eliminados localmente
   }
   
-  console.log('🏁 [authService.logout] Logout completado');
+  console.log('ðŸ [authService.logout] Logout completado');
 }
 
 /**
@@ -147,7 +147,7 @@ export async function refreshAccessToken(): Promise<string | null> {
     });
 
     if (!response.ok) {
-      // Refresh token inválido o expirado
+      // Refresh token invÃ¡lido o expirado
       await logout();
       return null;
     }
@@ -176,7 +176,7 @@ export async function getValidAccessToken(): Promise<string | null> {
     return null;
   }
 
-  // Verificar si el token está expirado
+  // Verificar si el token estÃ¡ expirado
   if (isTokenExpired(accessToken)) {
     // Intentar refrescar
     accessToken = await refreshAccessToken();
@@ -186,7 +186,7 @@ export async function getValidAccessToken(): Promise<string | null> {
 }
 
 /**
- * Obtiene la información del usuario desde el token
+ * Obtiene la informaciÃ³n del usuario desde el token
  */
 export function getUserFromToken(): User | null {
   const token = localStorage.getItem(ACCESS_TOKEN_KEY);
@@ -210,7 +210,7 @@ export function getUserFromToken(): User | null {
 }
 
 /**
- * Verifica si hay una sesión activa válida
+ * Verifica si hay una sesiÃ³n activa vÃ¡lida
  */
 export function isAuthenticated(): boolean {
   const token = localStorage.getItem(ACCESS_TOKEN_KEY);
@@ -223,7 +223,7 @@ export function isAuthenticated(): boolean {
 }
 
 /**
- * Verifica si el usuario actual tiene un rol específico
+ * Verifica si el usuario actual tiene un rol especÃ­fico
  */
 export function hasRole(role: string): boolean {
   const user = getUserFromToken();

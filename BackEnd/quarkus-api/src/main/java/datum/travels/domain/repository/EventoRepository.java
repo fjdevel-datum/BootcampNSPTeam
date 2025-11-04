@@ -42,4 +42,12 @@ public interface EventoRepository {
      * @return Evento actualizado
      */
     Evento update(Evento evento);
+
+    /**
+     * Elimina un evento por su ID
+     *
+     * @param idEvento ID del evento a eliminar
+     * @return true si se eliminó, false si no existía
+     */
+    boolean deleteById(Long idEvento);
 }

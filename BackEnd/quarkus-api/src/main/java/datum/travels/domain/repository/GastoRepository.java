@@ -42,5 +42,13 @@ public interface GastoRepository {
      * @return true si se eliminó, false si no existía
      */
     boolean deleteById(Long idGasto);
+
+    /**
+     * Elimina todos los gastos asociados a un evento
+     *
+     * @param idEvento ID del evento
+     * @return Número de gastos eliminados
+     */
+    int deleteByIdEvento(Long idEvento);
 }
 

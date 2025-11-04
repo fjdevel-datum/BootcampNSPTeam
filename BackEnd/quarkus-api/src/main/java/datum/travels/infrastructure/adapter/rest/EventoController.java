@@ -5,6 +5,7 @@ import datum.travels.application.dto.evento.CrearEventoRequest;
 import datum.travels.application.dto.evento.EventoResponse;
 import datum.travels.application.usecase.evento.ActualizarEstadoEventoUseCase;
 import datum.travels.application.usecase.evento.CrearEventoUseCase;
+import datum.travels.application.usecase.evento.EliminarEventoUseCase;
 import datum.travels.application.usecase.evento.ListarEventosUseCase;
 import datum.travels.application.usecase.evento.ObtenerDetalleEventoUseCase;
 import datum.travels.domain.exception.ResourceNotFoundException;
@@ -51,6 +52,9 @@ public class EventoController {
 
     @Inject
     ActualizarEstadoEventoUseCase actualizarEstadoEventoUseCase;
+
+    @Inject
+    EliminarEventoUseCase eliminarEventoUseCase;
 
     @Inject
     CurrentUserProvider currentUserProvider;
@@ -160,6 +164,28 @@ public class EventoController {
         try {
             EventoResponse evento = actualizarEstadoEventoUseCase.execute(idEvento, request);
             return Response.ok(evento).build();
+        } catch (ResourceNotFoundException e) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity(new ErrorResponse(e.getMessage()))
+                    .build();
+        }
+    }
+
+    /**
+     * DELETE /api/eventos/{id}
+     * Elimina un evento y todos sus gastos asociados
+     */
+    @DELETE
+    @Path("/{id}")
+    @Operation(summary = "Eliminar evento", description = "Elimina un evento y todos sus gastos asociados (CASCADE)")
+    @APIResponses(value = {
+            @APIResponse(responseCode = "204", description = "Evento eliminado exitosamente"),
+            @APIResponse(responseCode = "404", description = "Evento no encontrado")
+    })
+    public Response eliminarEvento(@PathParam("id") Long idEvento) {
+        try {
+            eliminarEventoUseCase.execute(idEvento);
+            return Response.noContent().build();
         } catch (ResourceNotFoundException e) {
             return Response.status(Response.Status.NOT_FOUND)
                     .entity(new ErrorResponse(e.getMessage()))

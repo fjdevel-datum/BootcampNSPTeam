@@ -38,4 +38,10 @@ public class EventoRepositoryImpl implements PanacheRepository<Evento>, EventoRe
     public Evento update(Evento evento) {
         return getEntityManager().merge(evento);
     }
+
+    @Override
+    @Transactional
+    public boolean deleteById(Long idEvento) {
+        return delete("idEvento", idEvento) > 0;
+    }
 }

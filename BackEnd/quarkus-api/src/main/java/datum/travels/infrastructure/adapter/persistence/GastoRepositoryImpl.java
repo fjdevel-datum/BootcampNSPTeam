@@ -38,5 +38,11 @@ public class GastoRepositoryImpl implements PanacheRepository<Gasto>, GastoRepos
     public boolean deleteById(Long idGasto) {
         return delete("idGasto", idGasto) > 0;
     }
+
+    @Override
+    @Transactional
+    public int deleteByIdEvento(Long idEvento) {
+        return (int) delete("evento.idEvento", idEvento);
+    }
 }
 

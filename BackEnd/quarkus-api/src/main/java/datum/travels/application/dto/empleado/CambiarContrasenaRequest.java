@@ -12,7 +12,7 @@ public class CambiarContrasenaRequest {
     private String contrasenaActual;
 
     @NotBlank(message = "La nueva contraseña es obligatoria")
-    @Size(min = 8, message = "La contraseña debe tener al menos 8 caracteres")
+    @Size(min = 5, message = "La contraseña debe tener al menos 5 caracteres")
     private String contrasenaNueva;
 
     @NotBlank(message = "La confirmación de contraseña es obligatoria")

@@ -98,8 +98,8 @@ export default function ProfilePage() {
         return;
       }
       
-      if (passwordForm.contrasenaNueva.length < 8) {
-        setPasswordError("La contraseña debe tener al menos 8 caracteres");
+      if (passwordForm.contrasenaNueva.length < 5) {
+        setPasswordError("La contraseña debe tener al menos 5 caracteres");
         return;
       }
       
@@ -471,7 +471,7 @@ export default function ProfilePage() {
                       value={passwordForm.contrasenaNueva}
                       onChange={handlePasswordInputChange("contrasenaNueva")}
                       className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent"
-                      placeholder="Mínimo 8 caracteres"
+                      placeholder="Mínimo 5 caracteres"
                     />
                   </div>
                   

@@ -1,9 +1,9 @@
-﻿import { ArrowLeft, Camera, Edit2, Mail, Phone, User } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
+﻿import { ArrowLeft, Edit2, Mail, Phone, User, Lock } from "lucide-react";
+import { useState, useEffect } from "react";
 import type { ChangeEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { obtenerPerfil, actualizarPerfil } from "../services/empleados";
-import type { PerfilEmpleado, ActualizarPerfilPayload } from "../types/empleado";
+import { obtenerPerfil, actualizarPerfil, cambiarContrasena } from "../services/empleados";
+import type { PerfilEmpleado, ActualizarPerfilPayload, CambiarContrasenaPayload } from "../types/empleado";
 
 export default function ProfilePage() {
   const navigate = useNavigate();
@@ -15,14 +15,31 @@ export default function ProfilePage() {
     correo: "",
     telefono: "",
   });
-  const [profileImage, setProfileImage] = useState<string>(
-    "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=256&q=80"
-  );
-  const [tempImage, setTempImage] = useState<string>("");
+  
+  // Seleccionar avatar aleatorio al cargar la página
+  const [profileImage] = useState<string>(() => {
+    const avatars = [
+      "/usuario blue.png",
+      "/usuario red.png",
+      "/usuario purple.png"
+    ];
+    const randomIndex = Math.floor(Math.random() * avatars.length);
+    return avatars[randomIndex];
+  });
+  
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Estado para cambio de contraseña
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordForm, setPasswordForm] = useState<CambiarContrasenaPayload>({
+    contrasenaActual: "",
+    contrasenaNueva: "",
+    confirmacionContrasena: "",
+  });
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
 
   // Cargar perfil al montar el componente
   useEffect(() => {
@@ -43,21 +60,67 @@ export default function ProfilePage() {
     }
   }
 
+  function handlePasswordInputChange(field: keyof CambiarContrasenaPayload) {
+    return (event: ChangeEvent<HTMLInputElement>) => {
+      setPasswordForm((prev) => ({ ...prev, [field]: event.target.value }));
+    };
+  }
+
+  function handleOpenPasswordModal() {
+    setPasswordForm({
+      contrasenaActual: "",
+      contrasenaNueva: "",
+      confirmacionContrasena: "",
+    });
+    setPasswordError(null);
+    setPasswordSuccess(false);
+    setShowPasswordModal(true);
+  }
+
+  function handleClosePasswordModal() {
+    setShowPasswordModal(false);
+    setPasswordForm({
+      contrasenaActual: "",
+      contrasenaNueva: "",
+      confirmacionContrasena: "",
+    });
+    setPasswordError(null);
+    setPasswordSuccess(false);
+  }
+
+  async function handlePasswordChange() {
+    try {
+      setPasswordError(null);
+      
+      // Validación frontend
+      if (passwordForm.contrasenaNueva !== passwordForm.confirmacionContrasena) {
+        setPasswordError("Las contraseñas no coinciden");
+        return;
+      }
+      
+      if (passwordForm.contrasenaNueva.length < 5) {
+        setPasswordError("La contraseña debe tener al menos 5 caracteres");
+        return;
+      }
+      
+      await cambiarContrasena(passwordForm);
+      setPasswordSuccess(true);
+      
+      // Cerrar modal después de 2 segundos
+      setTimeout(() => {
+        handleClosePasswordModal();
+      }, 2000);
+      
+    } catch (err) {
+      console.error("Error al cambiar contraseña:", err);
+      setPasswordError(err instanceof Error ? err.message : "Error al cambiar la contraseña");
+    }
+  }
+
   function handleInputChange(field: keyof ActualizarPerfilPayload) {
     return (event: ChangeEvent<HTMLInputElement>) => {
       setTempProfile((prev) => ({ ...prev, [field]: event.target.value }));
     };
-  }
-
-  function handleImageChange(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (file && file.type.startsWith("image/")) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setTempImage(e.target?.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
   }
 
   function handleEditClick() {
@@ -69,7 +132,6 @@ export default function ProfilePage() {
       correo: profile.correo,
       telefono: profile.telefono || "",
     });
-    setTempImage(profileImage);
     setIsEditMode(true);
     setSaveError(null);
   }
@@ -83,7 +145,6 @@ export default function ProfilePage() {
       correo: profile.correo,
       telefono: profile.telefono || "",
     });
-    setTempImage("");
     setIsEditMode(false);
     setSaveError(null);
   }
@@ -93,9 +154,7 @@ export default function ProfilePage() {
       setSaveError(null);
       const updatedProfile = await actualizarPerfil(tempProfile);
       setProfile(updatedProfile);
-      if (tempImage) {
-        setProfileImage(tempImage);
-      }
+      // No actualizamos la imagen ya que es un avatar predeterminado
       setIsEditMode(false);
     } catch (err) {
       console.error("Error al actualizar perfil:", err);
@@ -194,22 +253,11 @@ export default function ProfilePage() {
                 <div className="relative">
                   <div className="h-48 w-48 rounded-full overflow-hidden bg-slate-200 border-4 border-slate-100 shadow-xl">
                     <img
-                      src={isEditMode && tempImage ? tempImage : profileImage}
-                      alt="Foto de perfil"
+                      src={profileImage}
+                      alt="Avatar de perfil"
                       className="h-full w-full object-cover"
                     />
                   </div>
-                  
-                  {isEditMode && (
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="absolute bottom-2 right-2 h-12 w-12 bg-sky-600 hover:bg-sky-700 rounded-full flex items-center justify-center text-white shadow-lg transition"
-                      title="Cambiar foto"
-                    >
-                      <Camera className="h-5 w-5" />
-                    </button>
-                  )}
                 </div>
 
                 <div className="text-center">
@@ -241,15 +289,6 @@ export default function ProfilePage() {
                     </button>
                   </div>
                 )}
-
-                {/* Input oculto para subir imagen */}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  className="hidden"
-                />
               </div>
 
               {/* Columna Derecha - Información */}
@@ -367,11 +406,108 @@ export default function ProfilePage() {
                     </p>
                   </div>
                 </div>
+                
+                {/* Sección de Seguridad */}
+                <div className="mt-8 pt-8 border-t border-slate-200">
+                  <h3 className="text-lg font-semibold text-slate-900 mb-4">
+                    Seguridad
+                  </h3>
+                  <button
+                    onClick={handleOpenPasswordModal}
+                    className="w-full md:w-auto py-3 px-6 bg-slate-700 hover:bg-slate-800 text-white rounded-lg font-medium transition flex items-center justify-center gap-2"
+                  >
+                    <Lock className="h-4 w-4" />
+                    Cambiar Contraseña
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
+      
+      {/* Modal de Cambio de Contraseña */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8">
+            <h2 className="text-2xl font-bold text-slate-900 mb-6">
+              Cambiar Contraseña
+            </h2>
+            
+            {passwordSuccess ? (
+              <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 mb-4">
+                <p className="text-emerald-700 font-medium">
+                  ✓ Contraseña actualizada exitosamente
+                </p>
+              </div>
+            ) : (
+              <>
+                {passwordError && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                    <p className="text-red-700 text-sm">{passwordError}</p>
+                  </div>
+                )}
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-600 mb-2">
+                      Contraseña Actual
+                    </label>
+                    <input
+                      type="password"
+                      value={passwordForm.contrasenaActual}
+                      onChange={handlePasswordInputChange("contrasenaActual")}
+                      className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent"
+                      placeholder="Ingresa tu contraseña actual"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-slate-600 mb-2">
+                      Nueva Contraseña
+                    </label>
+                    <input
+                      type="password"
+                      value={passwordForm.contrasenaNueva}
+                      onChange={handlePasswordInputChange("contrasenaNueva")}
+                      className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent"
+                      placeholder="Mínimo 5 caracteres"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-slate-600 mb-2">
+                      Confirmar Nueva Contraseña
+                    </label>
+                    <input
+                      type="password"
+                      value={passwordForm.confirmacionContrasena}
+                      onChange={handlePasswordInputChange("confirmacionContrasena")}
+                      className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent"
+                      placeholder="Repite la nueva contraseña"
+                    />
+                  </div>
+                </div>
+                
+                <div className="flex gap-3 mt-6">
+                  <button
+                    onClick={handlePasswordChange}
+                    className="flex-1 py-3 px-6 bg-sky-600 hover:bg-sky-700 text-white rounded-lg font-medium transition"
+                  >
+                    Guardar
+                  </button>
+                  <button
+                    onClick={handleClosePasswordModal}
+                    className="flex-1 py-3 px-6 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg font-medium transition"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </main>
   );
 }

@@ -156,6 +156,12 @@
             <version>5.2.5</version>
         </dependency>
 
+        <!-- Mailer para envío de correos -->
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-mailer</artifactId>
+        </dependency>
+        
         <!-- Testing REST -->
         <dependency>
             <groupId>io.rest-assured</groupId>

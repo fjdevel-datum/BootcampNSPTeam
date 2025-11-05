@@ -1,6 +1,7 @@
 package datum.travels.domain.repository;
 
 import datum.travels.domain.model.Gasto;
+import datum.travels.domain.model.Evento;
 
 import java.util.List;
 import java.util.Optional;
@@ -18,6 +19,14 @@ public interface GastoRepository {
      * @return Lista de gastos del evento
      */
     List<Gasto> findByIdEvento(Long idEvento);
+    
+    /**
+     * Lista todos los gastos de un evento (por entidad)
+     *
+     * @param evento Entidad del evento
+     * @return Lista de gastos del evento
+     */
+    List<Gasto> findByEvento(Evento evento);
 
     /**
      * Busca un gasto por su ID

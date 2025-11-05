@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Send, FileSpreadsheet, MapPin, User } from 'lucide-react';
+import { X, Send, FileSpreadsheet, MapPin, User, CheckCircle } from 'lucide-react';
 import { listarDestinatarios, enviarReporte } from '../services/reportes';
 import type { DestinatarioReporte, EnviarReporteRequest } from '../types/reporte';
 
@@ -20,6 +20,11 @@ export default function EnviarReporteModal({
   const [loading, setLoading] = useState(false);
   const [loadingDestinatarios, setLoadingDestinatarios] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<{
+    mensaje: string;
+    asunto?: string;
+    cantidadGastos?: number;
+  } | null>(null);
 
   const [formData, setFormData] = useState<EnviarReporteRequest>({
     emailDestino: '',
@@ -64,9 +69,17 @@ export default function EnviarReporteModal({
       const response = await enviarReporte(eventoId, formData);
 
       if (response.exitoso) {
-        alert(`✅ ${response.mensaje}\n\nAsunto: ${response.asunto}\nGastos: ${response.cantidadGastos}`);
-        onSuccess();
-        onClose();
+        setSuccess({
+          mensaje: response.mensaje,
+          asunto: response.asunto,
+          cantidadGastos: response.cantidadGastos,
+        });
+        
+        // Cerrar modal después de 3 segundos
+        setTimeout(() => {
+          onSuccess();
+          onClose();
+        }, 3000);
       } else {
         setError(response.mensaje);
       }
@@ -82,19 +95,62 @@ export default function EnviarReporteModal({
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg max-w-md w-full p-6 shadow-xl">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-            <FileSpreadsheet className="text-green-600" size={28} />
-            Enviar Reporte Excel
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <X size={24} />
-          </button>
-        </div>
+        {/* Mensaje de Éxito */}
+        {success ? (
+          <div className="text-center py-8">
+            <div className="mb-6 flex justify-center">
+              <div className="rounded-full bg-green-100 p-4">
+                <CheckCircle className="text-green-600" size={64} />
+              </div>
+            </div>
+            
+            <h3 className="text-2xl font-bold text-gray-800 mb-3">
+              ¡Reporte Enviado!
+            </h3>
+            
+            <p className="text-gray-600 mb-4">{success.mensaje}</p>
+            
+            <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+              {success.asunto && (
+                <div>
+                  <p className="text-sm text-gray-600">Asunto:</p>
+                  <p className="font-mono text-sm font-semibold text-gray-800">
+                    {success.asunto}
+                  </p>
+                </div>
+              )}
+              {success.cantidadGastos !== undefined && (
+                <div>
+                  <p className="text-sm text-gray-600">Gastos reportados:</p>
+                  <p className="text-lg font-bold text-blue-600">
+                    {success.cantidadGastos}
+                  </p>
+                </div>
+              )}
+            </div>
+            
+            <div className="mt-6">
+              <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600"></div>
+                Cerrando automáticamente...
+              </div>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Header */}
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                <FileSpreadsheet className="text-green-600" size={28} />
+                Enviar Reporte Excel
+              </h2>
+              <button
+                onClick={onClose}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </div>
 
         {/* Info del evento */}
         <div className="bg-blue-50 rounded-lg p-4 mb-6">
@@ -203,6 +259,8 @@ export default function EnviarReporteModal({
             y no podrá agregar más gastos.
           </p>
         </div>
+        </>
+        )}
       </div>
     </div>
   );

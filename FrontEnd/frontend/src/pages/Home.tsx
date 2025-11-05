@@ -1,4 +1,4 @@
-﻿import { ArrowRight, Bell, CreditCard, Menu, Plus, Search, Trash2, X } from "lucide-react";
+﻿import { ArrowRight, Bell, CreditCard, Menu, Plus, Search, Trash2, X, HelpCircle } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import type { FormEvent, ReactNode } from "react";
@@ -332,11 +332,17 @@ export default function HomePage() {
                     <ArrowRight className="h-4 w-4 text-slate-400 ml-auto" />
                   </button>
 
-                  <button className="w-full flex items-center gap-3 p-3 text-left rounded-lg hover:bg-slate-100 transition">
-                    <div className="h-8 w-8 flex items-center justify-center rounded-lg bg-indigo-100">
-                      <Bell className="h-4 w-4 text-indigo-600" />
+                  <button 
+                    onClick={() => {
+                      navigate('/soporte');
+                      setIsMenuOpen(false);
+                    }}
+                    className="w-full flex items-center gap-3 p-3 text-left rounded-lg hover:bg-slate-100 transition"
+                  >
+                    <div className="h-8 w-8 flex items-center justify-center rounded-lg bg-sky-100">
+                      <HelpCircle className="h-4 w-4 text-sky-600" />
                     </div>
-                    <span className="font-medium text-slate-700">Política de la empresa</span>
+                    <span className="font-medium text-slate-700">Soporte Técnico</span>
                     <ArrowRight className="h-4 w-4 text-slate-400 ml-auto" />
                   </button>
                 </div>

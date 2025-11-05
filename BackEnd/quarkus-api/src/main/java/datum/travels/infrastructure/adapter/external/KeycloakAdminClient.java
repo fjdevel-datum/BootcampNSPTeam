@@ -160,6 +160,39 @@ public class KeycloakAdminClient {
             LOG.warnf("Error al eliminar usuario %s en Keycloak: %s", userId, ex.getMessage());
         }
     }
+    
+    /**
+     * Cambia la contraseña de un usuario en Keycloak.
+     *
+     * @param userId identificador del usuario en Keycloak
+     * @param newPassword nueva contraseña
+     */
+    public void changePassword(String userId, String newPassword) {
+        String adminToken = obtainAdminToken();
+
+        String endpoint = "%s/admin/realms/%s/users/%s/reset-password".formatted(keycloakUrl, realm, userId);
+
+        Map<String, Object> payload = Map.of(
+            "type", "password",
+            "temporary", Boolean.FALSE,
+            "value", newPassword
+        );
+
+        HttpRequest request = HttpRequest.newBuilder(URI.create(endpoint))
+            .header("Content-Type", "application/json")
+            .header("Authorization", "Bearer " + adminToken)
+            .PUT(HttpRequest.BodyPublishers.ofString(writeJson(payload)))
+            .build();
+
+        HttpResponse<String> response = send(request);
+
+        if (response.statusCode() != 204) {
+            String errorBody = Optional.ofNullable(response.body()).orElse("");
+            throw new KeycloakIntegrationException(
+                "No se pudo cambiar la contraseña en Keycloak. Codigo: " + response.statusCode() + " Detalle: " + errorBody
+            );
+        }
+    }
 
     private void assignRealmRole(String token, String userId, String roleName) {
         JsonNode roleRepresentation = fetchRoleRepresentation(token, roleName);
@@ -234,6 +267,35 @@ public class KeycloakAdminClient {
             return tokenNode.asText();
         } catch (IOException e) {
             throw new KeycloakIntegrationException("Error al leer el token de Keycloak", e);
+        }
+    }
+
+    /**
+     * Verifica si las credenciales de un usuario son válidas autenticando contra Keycloak.
+     *
+     * @param username nombre de usuario
+     * @param password contraseña a verificar
+     * @return true si las credenciales son válidas, false en caso contrario
+     */
+    public boolean verifyUserPassword(String username, String password) {
+        String tokenEndpoint = TOKEN_ENDPOINT_TEMPLATE.formatted(keycloakUrl, realm);
+        String form = "client_id=%s&username=%s&password=%s&grant_type=password".formatted(
+            urlEncode(adminClientId),
+            urlEncode(username),
+            urlEncode(password)
+        );
+
+        HttpRequest request = HttpRequest.newBuilder(URI.create(tokenEndpoint))
+            .header("Content-Type", "application/x-www-form-urlencoded")
+            .POST(HttpRequest.BodyPublishers.ofString(form))
+            .build();
+
+        try {
+            HttpResponse<String> response = send(request);
+            return response.statusCode() == 200;
+        } catch (Exception e) {
+            LOG.warn("Error al verificar contraseña para usuario: " + username);
+            return false;
         }
     }
 

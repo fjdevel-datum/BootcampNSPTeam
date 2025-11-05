@@ -20,6 +20,12 @@ export interface ActualizarPerfilPayload {
   telefono?: string | null;
 }
 
+export interface CambiarContrasenaPayload {
+  contrasenaActual: string;
+  contrasenaNueva: string;
+  confirmacionContrasena: string;
+}
+
 export interface EmpleadoResponse {
   idEmpleado: number;
   idDepartamento: number;

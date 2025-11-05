@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Send, FileSpreadsheet, FileText, MapPin, User } from 'lucide-react';
+import { X, Send, FileSpreadsheet, MapPin, User } from 'lucide-react';
 import { listarDestinatarios, enviarReporte } from '../services/reportes';
 import type { DestinatarioReporte, EnviarReporteRequest } from '../types/reporte';
 
@@ -25,7 +25,7 @@ export default function EnviarReporteModal({
     emailDestino: '',
     codigoPais: '',
     nombreProveedor: '',
-    formato: 'EXCEL',
+    formato: 'EXCEL', // Siempre Excel por defecto
   });
 
   // Cargar destinatarios al montar
@@ -44,12 +44,12 @@ export default function EnviarReporteModal({
     cargarDestinatarios();
   }, []);
 
-  const handleDestinatarioChange = (email: string) => {
-    const destinatario = destinatarios.find((d) => d.email === email);
+  const handleDestinatarioChange = (codigoPais: string) => {
+    const destinatario = destinatarios.find((d) => d.codigoPais === codigoPais);
     if (destinatario) {
       setFormData({
         ...formData,
-        emailDestino: email,
+        emailDestino: destinatario.email,
         codigoPais: destinatario.codigoPais,
       });
     }
@@ -84,8 +84,9 @@ export default function EnviarReporteModal({
       <div className="bg-white rounded-lg max-w-md w-full p-6 shadow-xl">
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-800">
-            📧 Enviar Reporte
+          <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+            <FileSpreadsheet className="text-green-600" size={28} />
+            Enviar Reporte Excel
           </h2>
           <button
             onClick={onClose}
@@ -103,7 +104,7 @@ export default function EnviarReporteModal({
 
         {/* Formulario */}
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Seleccionar Destinatario */}
+          {/* Seleccionar Destinatario (País) */}
           <div>
             <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
               <MapPin size={16} />
@@ -113,14 +114,14 @@ export default function EnviarReporteModal({
               <div className="text-sm text-gray-500">Cargando destinatarios...</div>
             ) : (
               <select
-                value={formData.emailDestino}
+                value={formData.codigoPais}
                 onChange={(e) => handleDestinatarioChange(e.target.value)}
                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 required
               >
                 <option value="">Seleccione un país</option>
                 {destinatarios.map((dest) => (
-                  <option key={dest.codigoPais} value={dest.email}>
+                  <option key={dest.codigoPais} value={dest.codigoPais}>
                     {dest.nombrePais} - {dest.email}
                   </option>
                 ))}
@@ -146,44 +147,6 @@ export default function EnviarReporteModal({
             <p className="text-xs text-gray-500 mt-1">
               Opcional. Se usará en el asunto del correo.
             </p>
-          </div>
-
-          {/* Formato del Reporte */}
-          <div>
-            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-              <FileText size={16} />
-              Formato del Reporte
-            </label>
-            <div className="flex gap-4">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="formato"
-                  value="EXCEL"
-                  checked={formData.formato === 'EXCEL'}
-                  onChange={(e) =>
-                    setFormData({ ...formData, formato: e.target.value as 'EXCEL' })
-                  }
-                  className="w-4 h-4 text-blue-600"
-                />
-                <FileSpreadsheet size={20} className="text-green-600" />
-                <span>Excel (.xlsx)</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="formato"
-                  value="PDF"
-                  checked={formData.formato === 'PDF'}
-                  onChange={(e) =>
-                    setFormData({ ...formData, formato: e.target.value as 'PDF' })
-                  }
-                  className="w-4 h-4 text-blue-600"
-                />
-                <FileText size={20} className="text-red-600" />
-                <span>PDF</span>
-              </label>
-            </div>
           </div>
 
           {/* Error message */}
@@ -215,7 +178,7 @@ export default function EnviarReporteModal({
             </button>
             <button
               type="submit"
-              disabled={loading || !formData.emailDestino}
+              disabled={loading || !formData.codigoPais}
               className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {loading ? (

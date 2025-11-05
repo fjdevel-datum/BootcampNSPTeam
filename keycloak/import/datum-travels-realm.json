@@ -696,18 +696,18 @@
       "clientId": "datum-travels-frontend",
       "name": "",
       "description": "",
-      "rootUrl": "http://localhost:5173",
-      "adminUrl": "http://localhost:5173",
-      "baseUrl": "http://localhost:5173",
+      "rootUrl": "",
+      "adminUrl": "",
+      "baseUrl": "",
       "surrogateAuthRequired": false,
       "enabled": true,
       "alwaysDisplayInConsole": false,
       "clientAuthenticatorType": "client-secret",
       "redirectUris": [
-        "http://localhost:5173/*"
+        "*"
       ],
       "webOrigins": [
-        "http://localhost:5173"
+        "*"
       ],
       "notBefore": 0,
       "bearerOnly": false,

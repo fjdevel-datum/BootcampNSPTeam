@@ -1,14 +1,6 @@
+﻿import { API_BASE_URL } from "../config/constants";
 import type { EventoBackend } from "../types/event";
 import { getValidAccessToken } from "./authService";
-
-/**
- * URL base del API de Quarkus
- * 
- * 🔧 Ajustar según configuración:
- * - Desarrollo local: http://localhost:8081 (puerto configurado en application.properties)
- * - Producción: cambiar a la URL del servidor
- */
-const API_BASE_URL = "http://localhost:8081";
 
 /**
  * Servicio para gestión de eventos
@@ -16,28 +8,20 @@ const API_BASE_URL = "http://localhost:8081";
 export const eventosService = {
   /**
    * Obtiene todos los eventos del empleado autenticado
-   * 
-   * ✅ INTEGRACIÓN KEYCLOAK:
-   * - Ya no acepta idEmpleado como parámetro
-   * - El backend obtiene automáticamente el empleado del JWT
-   * - Requiere token de autenticación válido
-   * 
-   * @returns Lista de eventos del empleado autenticado
    */
   async listarEventos(): Promise<EventoBackend[]> {
     try {
-      // Obtener token válido (refresca si es necesario)
       const token = await getValidAccessToken();
-      
+
       if (!token) {
         throw new Error("No hay sesión activa. Por favor inicia sesión.");
       }
 
-      const response = await fetch(`${API_BASE_URL}/api/eventos`, {
+      const response = await fetch(`${API_BASE_URL}/eventos`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`, // 🔐 Token JWT
+          Authorization: `Bearer ${token}`,
         },
       });
 
@@ -55,23 +39,20 @@ export const eventosService = {
 
   /**
    * Obtiene el detalle de un evento específico
-   * 
-   * @param idEvento - ID del evento
-   * @returns Detalle del evento
    */
   async obtenerEvento(idEvento: number): Promise<EventoBackend> {
     try {
       const token = await getValidAccessToken();
-      
+
       if (!token) {
         throw new Error("No hay sesión activa. Por favor inicia sesión.");
       }
 
-      const response = await fetch(`${API_BASE_URL}/api/eventos/${idEvento}`, {
+      const response = await fetch(`${API_BASE_URL}/eventos/${idEvento}`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`, // 🔐 Token JWT
+          Authorization: `Bearer ${token}`,
         },
       });
 
@@ -89,28 +70,20 @@ export const eventosService = {
 
   /**
    * Crea un nuevo evento para el empleado autenticado
-   * 
-   * ✅ INTEGRACIÓN KEYCLOAK:
-   * - Ya no acepta idEmpleado como parámetro
-   * - El backend asigna automáticamente el empleado del JWT
-   * - Requiere token de autenticación válido
-   * 
-   * @param nombreEvento - Nombre del evento
-   * @returns Evento creado
    */
   async crearEvento(nombreEvento: string): Promise<EventoBackend> {
     try {
       const token = await getValidAccessToken();
-      
+
       if (!token) {
         throw new Error("No hay sesión activa. Por favor inicia sesión.");
       }
 
-      const response = await fetch(`${API_BASE_URL}/api/eventos`, {
+      const response = await fetch(`${API_BASE_URL}/eventos`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`, // 🔐 Token JWT
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ nombreEvento }),
       });
@@ -130,22 +103,20 @@ export const eventosService = {
 
   /**
    * Elimina un evento existente
-   * 
-   * @param idEvento - ID del evento a eliminar
    */
   async eliminarEvento(idEvento: number): Promise<void> {
     try {
       const token = await getValidAccessToken();
-      
+
       if (!token) {
         throw new Error("No hay sesión activa. Por favor inicia sesión.");
       }
 
-      const response = await fetch(`${API_BASE_URL}/api/eventos/${idEvento}`, {
+      const response = await fetch(`${API_BASE_URL}/eventos/${idEvento}`, {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`, // 🔐 Token JWT
+          Authorization: `Bearer ${token}`,
         },
       });
 

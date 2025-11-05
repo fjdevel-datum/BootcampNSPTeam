@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sin conexion | ViaticosDatum</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+      }
+      body {
+        margin: 0;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        display: grid;
+        place-items: center;
+        min-height: 100vh;
+        background: #0f172a;
+        color: #f8fafc;
+        text-align: center;
+        padding: 2rem;
+      }
+      main {
+        max-width: 26rem;
+      }
+      h1 {
+        font-size: 1.875rem;
+        margin-bottom: 0.75rem;
+      }
+      p {
+        margin-bottom: 1.5rem;
+        line-height: 1.5;
+      }
+      button {
+        background: #38bdf8;
+        color: #0f172a;
+        border: none;
+        border-radius: 9999px;
+        padding: 0.75rem 1.5rem;
+        font-weight: 600;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Sin conexion</h1>
+      <p>
+        ViaticosDatum funciona sin conexion para tus ultimos datos.
+        Cuando vuelvas a estar en linea sincronizaremos solicitudes pendientes.
+      </p>
+      <button onclick="window.location.reload()">Reintentar</button>
+    </main>
+  </body>
+</html>

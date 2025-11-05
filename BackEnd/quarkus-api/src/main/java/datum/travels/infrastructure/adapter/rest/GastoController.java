@@ -1,8 +1,10 @@
 package datum.travels.infrastructure.adapter.rest;
 
+import datum.travels.application.dto.gasto.ActualizarGastoRequest;
 import datum.travels.application.dto.gasto.CrearGastoFromLlmRequest;
 import datum.travels.application.dto.gasto.CrearGastoRequest;
 import datum.travels.application.dto.gasto.GastoResponse;
+import datum.travels.application.usecase.gasto.ActualizarGastoUseCase;
 import datum.travels.application.usecase.gasto.CrearGastoUseCase;
 import datum.travels.application.usecase.gasto.EliminarGastoUseCase;
 import datum.travels.application.usecase.gasto.ListarGastosPorEventoUseCase;
@@ -42,6 +44,9 @@ public class GastoController {
 
     @Inject
     EliminarGastoUseCase eliminarGastoUseCase;
+
+    @Inject
+    ActualizarGastoUseCase actualizarGastoUseCase;
 
     /**
      * Registra un nuevo gasto vinculado a un evento
@@ -132,6 +137,36 @@ public class GastoController {
         
         List<GastoResponse> gastos = listarGastosPorEventoUseCase.execute(idEvento);
         return Response.ok(gastos).build();
+    }
+
+    /**
+     * Actualiza un gasto existente
+     *
+     * @param idGasto ID del gasto a actualizar
+     * @param request Datos a modificar
+     * @return 200 OK con el gasto actualizado
+     */
+    @PUT
+    @Path("/{idGasto}")
+    @Operation(summary = "Actualizar gasto",
+            description = "Permite actualizar los datos principales de un gasto registrado")
+    @APIResponses({
+            @APIResponse(responseCode = "200", description = "Gasto actualizado correctamente"),
+            @APIResponse(responseCode = "400", description = "Datos inválidos"),
+            @APIResponse(responseCode = "404", description = "Gasto, categoría o tarjeta no encontrada")
+    })
+    public Response actualizarGasto(
+            @Parameter(description = "ID del gasto", required = true)
+            @PathParam("idGasto") Long idGasto,
+            @Valid ActualizarGastoRequest request) {
+        try {
+            GastoResponse response = actualizarGastoUseCase.execute(idGasto, request);
+            return Response.ok(response).build();
+        } catch (ResourceNotFoundException e) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity(new ErrorResponse(e.getMessage()))
+                    .build();
+        }
     }
 
     /**

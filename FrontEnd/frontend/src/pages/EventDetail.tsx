@@ -13,12 +13,14 @@ import {
   ExternalLink,
   Pencil,
   Trash2,
+  Mail,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { defaultEventData, type EventoBackend } from "../types/event";
 import { dataUrlToFile, downloadGastoFile } from "../services/ocr";
+import EnviarReporteModal from "../components/EnviarReporteModal";
 import { eventosService } from "../services/eventos";
 import { useAuth } from "../context/AuthContext";
 import { gastosService } from "../services/gastos";
@@ -89,6 +91,7 @@ export default function EventDetailPage() {
   const [accionFeedback, setAccionFeedback] = useState<{ type: "success" | "error"; message: string } | null>(
     null
   );
+  const [isEnviarReporteModalOpen, setIsEnviarReporteModalOpen] = useState(false);
 
   // Estados para manejo de imagenes y camara
   const [isCameraOpen, setIsCameraOpen] = useState(false);
@@ -1137,8 +1140,17 @@ export default function EventDetailPage() {
           </div>
         </div>
       )}
-      {/* Action Buttons - Para tomar fotos */}
+      {/* Action Buttons - Para tomar fotos y enviar reporte */}
       <div className="fixed bottom-6 right-6 flex flex-col gap-3">
+        {/* Botón Enviar Reporte */}
+        <button
+          onClick={() => setIsEnviarReporteModalOpen(true)}
+          className="w-14 h-14 bg-sky-600 hover:bg-sky-700 text-white rounded-full shadow-lg flex items-center justify-center transition"
+          title="Enviar reporte por email"
+          disabled={!idEvento || gastos.length === 0}
+        >
+          <Mail className="h-6 w-6" />
+        </button>
         <button
           onClick={selectFile}
           className="w-14 h-14 bg-teal-600 hover:bg-teal-700 text-white rounded-full shadow-lg flex items-center justify-center transition"
@@ -1226,6 +1238,23 @@ export default function EventDetailPage() {
           </button>
         </div>
       </div>
+
+      {/* Modal Enviar Reporte */}
+      {isEnviarReporteModalOpen && idEvento && (
+        <EnviarReporteModal
+          eventoId={idEvento}
+          nombreEvento={eventDisplayName}
+          onClose={() => setIsEnviarReporteModalOpen(false)}
+          onSuccess={() => {
+            setIsEnviarReporteModalOpen(false);
+            showFeedback("success", "Reporte enviado exitosamente por email");
+            // Recargar evento para reflejar cambio de estado
+            if (eventoSeleccionado) {
+              setEventoSeleccionado({ ...eventoSeleccionado, estado: "completado" });
+            }
+          }}
+        />
+      )}
     </main>
   );
 }

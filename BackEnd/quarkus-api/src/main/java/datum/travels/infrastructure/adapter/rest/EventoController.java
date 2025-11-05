@@ -3,11 +3,14 @@ package datum.travels.infrastructure.adapter.rest;
 import datum.travels.application.dto.evento.ActualizarEstadoRequest;
 import datum.travels.application.dto.evento.CrearEventoRequest;
 import datum.travels.application.dto.evento.EventoResponse;
+import datum.travels.application.dto.reporte.EnviarReporteRequest;
+import datum.travels.application.dto.reporte.EnviarReporteResponse;
 import datum.travels.application.usecase.evento.ActualizarEstadoEventoUseCase;
 import datum.travels.application.usecase.evento.CrearEventoUseCase;
 import datum.travels.application.usecase.evento.EliminarEventoUseCase;
 import datum.travels.application.usecase.evento.ListarEventosUseCase;
 import datum.travels.application.usecase.evento.ObtenerDetalleEventoUseCase;
+import datum.travels.application.usecase.reporte.EnviarReporteGastosUseCase;
 import datum.travels.domain.exception.ResourceNotFoundException;
 import datum.travels.shared.util.CurrentUserProvider;
 import io.quarkus.security.Authenticated;
@@ -55,6 +58,9 @@ public class EventoController {
 
     @Inject
     EliminarEventoUseCase eliminarEventoUseCase;
+
+    @Inject
+    EnviarReporteGastosUseCase enviarReporteGastosUseCase;
 
     @Inject
     CurrentUserProvider currentUserProvider;
@@ -191,6 +197,41 @@ public class EventoController {
                     .entity(new ErrorResponse(e.getMessage()))
                     .build();
         }
+    }
+
+    /**
+     * POST /api/eventos/{id}/enviar-reporte
+     * Finaliza un evento y envía el reporte de gastos por correo
+     */
+    @POST
+    @Path("/{id}/enviar-reporte")
+    @Operation(
+        summary = "Enviar reporte de gastos", 
+        description = "Finaliza un evento (cambia estado a completado) y envía el reporte de gastos por correo"
+    )
+    @APIResponses(value = {
+        @APIResponse(
+            responseCode = "200", 
+            description = "Reporte enviado exitosamente"
+        ),
+        @APIResponse(
+            responseCode = "400", 
+            description = "Datos inválidos en la solicitud"
+        ),
+        @APIResponse(
+            responseCode = "404", 
+            description = "Evento no encontrado"
+        ),
+        @APIResponse(
+            responseCode = "500", 
+            description = "Error al generar o enviar el reporte"
+        )
+    })
+    public EnviarReporteResponse enviarReporte(
+            @PathParam("id") Long idEvento,
+            @Valid EnviarReporteRequest request
+    ) {
+        return enviarReporteGastosUseCase.execute(idEvento, request);
     }
 
     // ═══════════════════════════════════════════════════════════════════════

@@ -23,7 +23,7 @@ export async function obtenerPerfil(): Promise<PerfilEmpleado> {
     throw new Error("No hay sesion activa. Por favor inicia sesion.");
   }
 
-  const response = await fetch(`${API_BASE_URL}/api/empleados/perfil`, {
+  const response = await fetch(`${API_BASE_URL}/empleados/perfil`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
@@ -49,7 +49,7 @@ export async function actualizarPerfil(payload: ActualizarPerfilPayload): Promis
     throw new Error("No hay sesion activa. Por favor inicia sesion.");
   }
 
-  const response = await fetch(`${API_BASE_URL}/api/empleados/perfil`, {
+  const response = await fetch(`${API_BASE_URL}/empleados/perfil`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
@@ -88,7 +88,7 @@ export async function cambiarContrasena(payload: CambiarContrasenaPayload): Prom
     throw new Error("No hay sesion activa. Por favor inicia sesion.");
   }
 
-  const response = await fetch(`${API_BASE_URL}/api/empleados/perfil/cambiar-contrasena`, {
+  const response = await fetch(`${API_BASE_URL}/empleados/perfil/cambiar-contrasena`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
@@ -125,7 +125,7 @@ export async function crearEmpleado(payload: CrearEmpleadoPayload): Promise<Empl
     throw new Error("No hay sesion activa. Por favor inicia sesion.");
   }
 
-  const response = await fetch(`${API_BASE_URL}/api/empleados`, {
+  const response = await fetch(`${API_BASE_URL}/empleados`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -162,7 +162,7 @@ export async function listarEmpleados(): Promise<UsuarioAdmin[]> {
     throw new Error("No hay sesion activa. Por favor inicia sesion.");
   }
 
-  const response = await fetch(`${API_BASE_URL}/api/empleados`, {
+  const response = await fetch(`${API_BASE_URL}/empleados`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",

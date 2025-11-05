@@ -186,13 +186,13 @@ export default function EventDetailPage() {
       typeof codigoMoneda === "string" ? codigoMoneda.trim().toUpperCase() : "";
     const moneda = monedaBase || "USD";
     try {
-      return new Intl.NumberFormat("es-MX", {
+      return new Intl.NumberFormat("en-US", {
         style: "currency",
         currency: moneda,
         minimumFractionDigits: 2,
       }).format(monto);
     } catch {
-      return `${moneda} ${monto.toFixed(2)}`;
+      return `$${monto.toFixed(2)}`;
     }
   };
 
@@ -766,47 +766,21 @@ export default function EventDetailPage() {
 
       {/* Financial Overview */}
       <div className="px-6 py-8">
-        <div className="bg-white rounded-2xl shadow-lg p-6 max-w-2xl mx-auto">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-semibold text-slate-900">VISIBILIDAD DE INGRESOS</h2>
-            <button className="text-sm text-sky-600 hover:text-sky-700 font-medium">
-              View report
-            </button>
+        <div className="bg-gradient-to-br from-white to-slate-50 rounded-2xl shadow-lg border border-slate-200 p-8 max-w-2xl mx-auto">
+          <div className="text-center mb-6">
+            <h2 className="text-xl font-bold text-slate-900 tracking-wide">VISIBILIDAD DE INGRESOS</h2>
+            <p className="text-sm text-slate-500 mt-2">Fecha: {new Date().toLocaleDateString()}</p>
           </div>
 
-          <p className="text-sm text-slate-500 mb-6">Fecha: {new Date().toLocaleDateString()}</p>
-
-          <div className="grid grid-cols-3 gap-6">
-            {/* Total Recibido */}
-            <div className="text-center">
-              <div className="flex items-center justify-center mb-2">
-                <div className="w-4 h-4 bg-sky-400 rounded-sm mr-2"></div>
-                <span className="text-sm text-slate-600">Total Recibido</span>
-              </div>
-              <p className="text-2xl font-bold text-slate-900">
-                {formatCurrency(financialOverview.totalReceived, "USD")}
-              </p>
-            </div>
-
+          <div className="flex justify-center">
             {/* Gastado */}
-            <div className="text-center">
-              <div className="flex items-center justify-center mb-2">
-                <div className="w-4 h-4 bg-slate-800 rounded-sm mr-2"></div>
-                <span className="text-sm text-slate-600">Gastado</span>
+            <div className="text-center bg-white rounded-xl shadow-md border border-slate-200 px-12 py-8 hover:shadow-lg transition-shadow duration-300">
+              <div className="flex items-center justify-center mb-3">
+                <div className="w-3 h-3 bg-slate-800 rounded-full mr-2"></div>
+                <span className="text-sm font-medium text-slate-600 uppercase tracking-wider">Gastado</span>
               </div>
-              <p className="text-2xl font-bold text-slate-900">
+              <p className="text-4xl font-bold text-slate-900 tracking-tight">
                 {formatCurrency(financialOverview.totalSpent, "USD")}
-              </p>
-            </div>
-
-            {/* Restante */}
-            <div className="text-center">
-              <div className="flex items-center justify-center mb-2">
-                <div className="w-4 h-4 bg-sky-600 rounded-sm mr-2"></div>
-                <span className="text-sm text-slate-600">Restante</span>
-              </div>
-              <p className="text-2xl font-bold text-slate-900">
-                {formatCurrency(financialOverview.remaining, "USD")}
               </p>
             </div>
           </div>

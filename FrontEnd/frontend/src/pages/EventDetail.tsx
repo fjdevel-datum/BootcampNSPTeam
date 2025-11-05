@@ -14,6 +14,7 @@ import {
   Pencil,
   Trash2,
   Mail,
+  Search,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
@@ -92,6 +93,7 @@ export default function EventDetailPage() {
     null
   );
   const [isEnviarReporteModalOpen, setIsEnviarReporteModalOpen] = useState(false);
+  const [gastoSearchTerm, setGastoSearchTerm] = useState("");
 
   // Estados para manejo de imagenes y camara
   const [isCameraOpen, setIsCameraOpen] = useState(false);
@@ -101,6 +103,7 @@ export default function EventDetailPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const gastoSearchInputRef = useRef<HTMLInputElement | null>(null);
   const previewUrlRef = useRef<string | null>(null);
   const feedbackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -186,13 +189,13 @@ export default function EventDetailPage() {
       typeof codigoMoneda === "string" ? codigoMoneda.trim().toUpperCase() : "";
     const moneda = monedaBase || "USD";
     try {
-      return new Intl.NumberFormat("es-MX", {
+      return new Intl.NumberFormat("en-US", {
         style: "currency",
         currency: moneda,
         minimumFractionDigits: 2,
       }).format(monto);
     } catch {
-      return `${moneda} ${monto.toFixed(2)}`;
+      return `$${monto.toFixed(2)}`;
     }
   };
 
@@ -210,6 +213,13 @@ export default function EventDetailPage() {
       year: "numeric",
     }).format(fecha);
   };
+
+  const normalizeTextValue = (valor: string | null | undefined) =>
+    (valor ?? "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .trim();
 
   const inferImageMime = (fileName: string | null | undefined, currentType: string | null | undefined) => {
     const normalizedType = (currentType ?? "").toLowerCase();
@@ -256,6 +266,19 @@ export default function EventDetailPage() {
     }
     return valor.split("T")[0];
   };
+
+  const normalizedGastoSearch = normalizeTextValue(gastoSearchTerm);
+  const gastosFiltrados = useMemo(
+    () =>
+      normalizedGastoSearch.length === 0
+        ? gastos
+        : gastos.filter((gasto) =>
+            normalizeTextValue(gasto.descripcion).includes(normalizedGastoSearch)
+          ),
+    [gastos, normalizedGastoSearch]
+  );
+  const hasGastos = gastos.length > 0;
+  const hasFilteredGastos = gastosFiltrados.length > 0;
 
   const abrirModalEdicion = (gasto: GastoBackend) => {
     setEditForm({
@@ -520,6 +543,7 @@ export default function EventDetailPage() {
   }, [decodedEventName, eventoSeleccionado]);
 
   const idEvento = eventoSeleccionado?.idEvento ?? null;
+  const isEnviarReporteDisabled = !idEvento || !hasGastos;
 
   useEffect(() => {
     if (!idEvento) {
@@ -766,47 +790,21 @@ export default function EventDetailPage() {
 
       {/* Financial Overview */}
       <div className="px-6 py-8">
-        <div className="bg-white rounded-2xl shadow-lg p-6 max-w-2xl mx-auto">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-semibold text-slate-900">VISIBILIDAD DE INGRESOS</h2>
-            <button className="text-sm text-sky-600 hover:text-sky-700 font-medium">
-              View report
-            </button>
+        <div className="bg-gradient-to-br from-white to-slate-50 rounded-2xl shadow-lg border border-slate-200 p-8 max-w-2xl mx-auto">
+          <div className="text-center mb-6">
+            <h2 className="text-xl font-bold text-slate-900 tracking-wide">VISIBILIDAD DE INGRESOS</h2>
+            <p className="text-sm text-slate-500 mt-2">Fecha: {new Date().toLocaleDateString()}</p>
           </div>
 
-          <p className="text-sm text-slate-500 mb-6">Fecha: {new Date().toLocaleDateString()}</p>
-
-          <div className="grid grid-cols-3 gap-6">
-            {/* Total Recibido */}
-            <div className="text-center">
-              <div className="flex items-center justify-center mb-2">
-                <div className="w-4 h-4 bg-sky-400 rounded-sm mr-2"></div>
-                <span className="text-sm text-slate-600">Total Recibido</span>
-              </div>
-              <p className="text-2xl font-bold text-slate-900">
-                {formatCurrency(financialOverview.totalReceived, "USD")}
-              </p>
-            </div>
-
+          <div className="flex justify-center">
             {/* Gastado */}
-            <div className="text-center">
-              <div className="flex items-center justify-center mb-2">
-                <div className="w-4 h-4 bg-slate-800 rounded-sm mr-2"></div>
-                <span className="text-sm text-slate-600">Gastado</span>
+            <div className="text-center bg-white rounded-xl shadow-md border border-slate-200 px-12 py-8 hover:shadow-lg transition-shadow duration-300">
+              <div className="flex items-center justify-center mb-3">
+                <div className="w-3 h-3 bg-slate-800 rounded-full mr-2"></div>
+                <span className="text-sm font-medium text-slate-600 uppercase tracking-wider">Gastado</span>
               </div>
-              <p className="text-2xl font-bold text-slate-900">
+              <p className="text-4xl font-bold text-slate-900 tracking-tight">
                 {formatCurrency(financialOverview.totalSpent, "USD")}
-              </p>
-            </div>
-
-            {/* Restante */}
-            <div className="text-center">
-              <div className="flex items-center justify-center mb-2">
-                <div className="w-4 h-4 bg-sky-600 rounded-sm mr-2"></div>
-                <span className="text-sm text-slate-600">Restante</span>
-              </div>
-              <p className="text-2xl font-bold text-slate-900">
-                {formatCurrency(financialOverview.remaining, "USD")}
               </p>
             </div>
           </div>
@@ -816,9 +814,34 @@ export default function EventDetailPage() {
       {/* Historial de transacciones */}
       <div className="px-6 pb-8">
         <div className="bg-white rounded-2xl shadow-lg p-6 max-w-2xl mx-auto">
-          <div className="flex items-center gap-3 mb-6">
-            <FileText className="h-6 w-6 text-slate-600" />
-            <h3 className="text-lg font-semibold text-slate-900">Historial de transacciones</h3>
+          <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3">
+              <FileText className="h-6 w-6 text-slate-600" />
+              <h3 className="text-lg font-semibold text-slate-900">Historial de transacciones</h3>
+            </div>
+            <div className="relative w-full sm:w-72">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                ref={gastoSearchInputRef}
+                value={gastoSearchTerm}
+                onChange={(event) => setGastoSearchTerm(event.target.value)}
+                placeholder="Buscar gasto por nombre"
+                className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-10 text-sm text-slate-900 shadow-sm transition focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-200"
+              />
+              {gastoSearchTerm.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setGastoSearchTerm("");
+                    gastoSearchInputRef.current?.focus();
+                  }}
+                  className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition hover:bg-slate-200 hover:text-slate-700"
+                  aria-label="Limpiar busqueda de gastos"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
           </div>
 
           {accionFeedback && (
@@ -839,13 +862,13 @@ export default function EventDetailPage() {
             </p>
           ) : gastosError ? (
             <p className="text-center text-red-600 py-8">{gastosError}</p>
-          ) : gastos.length === 0 ? (
+          ) : !hasGastos ? (
             <p className="text-center text-slate-500 py-8">
               No hay transacciones registradas para este evento.
             </p>
-          ) : (
+          ) : hasFilteredGastos ? (
             <div className="space-y-4">
-              {gastos.map((gasto) => {
+              {gastosFiltrados.map((gasto) => {
                 const montoOriginal = gasto.monto ?? 0;
                 const moneda = gasto.moneda || "USD";
                 const montoFormateado = formatCurrency(montoOriginal, moneda);
@@ -928,6 +951,22 @@ export default function EventDetailPage() {
                   </div>
                 );
               })}
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-sky-200 bg-sky-50/60 px-6 py-8 text-center text-slate-600">
+              <p className="text-sm font-medium">
+                No se encontraron gastos que coincidan con "{gastoSearchTerm}".
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setGastoSearchTerm("");
+                  gastoSearchInputRef.current?.focus();
+                }}
+                className="mt-4 inline-flex items-center rounded-md bg-sky-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-sky-500"
+              >
+                Limpiar busqueda
+              </button>
             </div>
           )}
         </div>
@@ -1141,30 +1180,49 @@ export default function EventDetailPage() {
         </div>
       )}
       {/* Action Buttons - Para tomar fotos y enviar reporte */}
-      <div className="fixed bottom-6 right-6 flex flex-col gap-3">
-        {/* Botón Enviar Reporte */}
-        <button
-          onClick={() => setIsEnviarReporteModalOpen(true)}
-          className="w-14 h-14 bg-sky-600 hover:bg-sky-700 text-white rounded-full shadow-lg flex items-center justify-center transition"
-          title="Enviar reporte por email"
-          disabled={!idEvento || gastos.length === 0}
-        >
-          <Mail className="h-6 w-6" />
-        </button>
-        <button
-          onClick={selectFile}
-          className="w-14 h-14 bg-teal-600 hover:bg-teal-700 text-white rounded-full shadow-lg flex items-center justify-center transition"
-          title="Adjuntar archivo"
-        >
-          <Paperclip className="h-6 w-6" />
-        </button>
-        <button
-          onClick={openCamera}
-          className="w-14 h-14 bg-teal-600 hover:bg-teal-700 text-white rounded-full shadow-lg flex items-center justify-center transition"
-          title="Tomar foto"
-        >
-          <Camera className="h-6 w-6" />
-        </button>
+      <div className="fixed bottom-6 right-6 flex flex-col items-end gap-3">
+        {/* Boton Enviar Reporte */}
+        <div className="flex items-center gap-3">
+          <span
+            className={`rounded-lg bg-white px-3 py-1 text-sm font-medium shadow ${
+              isEnviarReporteDisabled ? "text-slate-400" : "text-slate-700"
+            }`}
+          >
+            Enviar reporte
+          </span>
+          <button
+            onClick={() => setIsEnviarReporteModalOpen(true)}
+            className="flex h-14 w-14 items-center justify-center rounded-full bg-sky-600 text-white shadow-lg transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-slate-400 disabled:hover:bg-slate-400 disabled:opacity-80"
+            title="Enviar reporte"
+            disabled={isEnviarReporteDisabled}
+          >
+            <Mail className="h-6 w-6" />
+          </button>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="rounded-lg bg-white px-3 py-1 text-sm font-medium text-slate-700 shadow">
+            Agregar gasto
+          </span>
+          <button
+            onClick={selectFile}
+            className="flex h-14 w-14 items-center justify-center rounded-full bg-teal-600 text-white shadow-lg transition hover:bg-teal-700"
+            title="Agregar gasto"
+          >
+            <Paperclip className="h-6 w-6" />
+          </button>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="rounded-lg bg-white px-3 py-1 text-sm font-medium text-slate-700 shadow">
+            Tomar foto
+          </span>
+          <button
+            onClick={openCamera}
+            className="flex h-14 w-14 items-center justify-center rounded-full bg-teal-600 text-white shadow-lg transition hover:bg-teal-700"
+            title="Tomar foto"
+          >
+            <Camera className="h-6 w-6" />
+          </button>
+        </div>
       </div>
 
       {/* Input oculto para seleccionar archivos */}

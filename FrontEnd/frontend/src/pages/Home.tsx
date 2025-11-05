@@ -1,5 +1,5 @@
-﻿import { ArrowRight, Bell, CreditCard, Menu, Plus, Search, Trash2, X } from "lucide-react";
-import { useState, useEffect } from "react";
+﻿import { ArrowRight, Bell, CreditCard, Menu, Plus, Search, Trash2, X, HelpCircle } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import type { FormEvent, ReactNode } from "react";
 import { eventosService } from "../services/eventos";
@@ -12,11 +12,13 @@ export default function HomePage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [eventName, setEventName] = useState("");
   const [eventos, setEventos] = useState<EventoBackend[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const [eventoAEliminar, setEventoAEliminar] = useState<EventoBackend | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
   const navigate = useNavigate();
   const { logout, user } = useAuth();
 
@@ -90,6 +92,14 @@ export default function HomePage() {
   }
 
   const hasEvents = eventos.length > 0;
+  const normalizedSearch = normalizeText(searchTerm);
+  const eventosFiltrados =
+    normalizedSearch.length === 0
+      ? eventos
+      : eventos.filter((evento) =>
+          normalizeText(evento.nombreEvento).includes(normalizedSearch)
+        );
+  const hasFilteredEvents = eventosFiltrados.length > 0;
 
   return (
     <main className="min-h-screen bg-slate-100 text-slate-900">
@@ -104,7 +114,12 @@ export default function HomePage() {
         </button>
 
         <div className="flex items-center gap-4">
-          <ActionIcon label="Buscar">
+          <ActionIcon
+            label="Buscar"
+            onClick={() => {
+              searchInputRef.current?.focus();
+            }}
+          >
             <Search className="h-5 w-5" />
           </ActionIcon>
           <ActionIcon label="Notificaciones">
@@ -164,6 +179,31 @@ export default function HomePage() {
         <p className="mt-2 text-sm text-slate-500">
           {hasEvents ? "Selecciona un evento para ver los gastos realizados." : "No hay eventos activos por el momento. Puedes registrar uno nuevo."}
         </p>
+        <div className="mt-6 flex justify-center">
+          <div className="relative w-full max-w-lg">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              ref={searchInputRef}
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder="Buscar evento por nombre"
+              className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-10 text-sm text-slate-900 shadow-sm transition focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-200"
+            />
+            {searchTerm.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchTerm("");
+                  searchInputRef.current?.focus();
+                }}
+                className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition hover:bg-slate-200 hover:text-slate-700"
+                aria-label="Limpiar busqueda"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+        </div>
       </section>
 
       <div className="relative flex-1">
@@ -185,23 +225,41 @@ export default function HomePage() {
               </button>
             </div>
           ) : hasEvents ? (
-            <div className="mx-auto flex w-full max-w-lg flex-col gap-4">
-              {eventos.map((evento, index) => (
-                <EventButton 
-                  key={evento.idEvento} 
-                  label={evento.nombreEvento} 
-                  colorClass={palette[index % palette.length]}
-                  onClick={() =>
-                    navigate(`/event/${encodeURIComponent(evento.nombreEvento)}`, {
-                      state: { evento },
-                    })
-                  }
-                  onDelete={() => setEventoAEliminar(evento)}
-                  fechaRegistro={evento.fechaRegistro}
-                  estado={evento.estado}
-                />
-              ))}
-            </div>
+            hasFilteredEvents ? (
+              <div className="mx-auto flex w-full max-w-lg flex-col gap-4">
+                {eventosFiltrados.map((evento, index) => (
+                  <EventButton 
+                    key={evento.idEvento} 
+                    label={evento.nombreEvento} 
+                    colorClass={palette[index % palette.length]}
+                    onClick={() =>
+                      navigate(`/event/${encodeURIComponent(evento.nombreEvento)}`, {
+                        state: { evento },
+                      })
+                    }
+                    onDelete={() => setEventoAEliminar(evento)}
+                    fechaRegistro={evento.fechaRegistro}
+                    estado={evento.estado}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-sky-200 bg-white/70 px-6 py-8 text-center text-slate-500">
+                <p className="text-sm font-medium">
+                  No se encontraron eventos que coincidan con "{searchTerm}".
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchTerm("");
+                    searchInputRef.current?.focus();
+                  }}
+                  className="mt-4 inline-flex items-center rounded-md bg-sky-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-sky-500"
+                >
+                  Limpiar busqueda
+                </button>
+              </div>
+            )
           ) : (
             <div className="rounded-2xl border border-dashed border-slate-300 bg-white/70 px-6 py-8 text-center text-slate-500">
               <p className="text-sm">Aun no has agregado eventos a tu calendario.</p>
@@ -332,11 +390,17 @@ export default function HomePage() {
                     <ArrowRight className="h-4 w-4 text-slate-400 ml-auto" />
                   </button>
 
-                  <button className="w-full flex items-center gap-3 p-3 text-left rounded-lg hover:bg-slate-100 transition">
-                    <div className="h-8 w-8 flex items-center justify-center rounded-lg bg-indigo-100">
-                      <Bell className="h-4 w-4 text-indigo-600" />
+                  <button 
+                    onClick={() => {
+                      navigate('/soporte');
+                      setIsMenuOpen(false);
+                    }}
+                    className="w-full flex items-center gap-3 p-3 text-left rounded-lg hover:bg-slate-100 transition"
+                  >
+                    <div className="h-8 w-8 flex items-center justify-center rounded-lg bg-sky-100">
+                      <HelpCircle className="h-4 w-4 text-sky-600" />
                     </div>
-                    <span className="font-medium text-slate-700">Política de la empresa</span>
+                    <span className="font-medium text-slate-700">Soporte Técnico</span>
                     <ArrowRight className="h-4 w-4 text-slate-400 ml-auto" />
                   </button>
                 </div>
@@ -403,10 +467,19 @@ export default function HomePage() {
   );
 }
 
-function ActionIcon({ children, label }: { children: ReactNode; label: string }) {
+function ActionIcon({
+  children,
+  label,
+  onClick,
+}: {
+  children: ReactNode;
+  label: string;
+  onClick?: () => void;
+}) {
   return (
     <button
       type="button"
+      onClick={onClick}
       aria-label={label}
       className="relative inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition hover:bg-slate-200"
     >
@@ -466,4 +539,12 @@ function EventButton({ label, colorClass, onClick, onDelete, fechaRegistro, esta
       </button>
     </div>
   );
+}
+
+function normalizeText(text: string) {
+  return text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
 }

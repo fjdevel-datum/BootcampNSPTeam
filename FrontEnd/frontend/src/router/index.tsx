@@ -7,6 +7,7 @@ import ProfilePage from "../pages/profile";
 import EventDetailPage from "../pages/EventDetail";
 import GastoFormPage from "../pages/GastoForm";
 import TarjetasPage from "../pages/Tarjetas";
+import SoporteTecnicoPage from "../pages/SoporteTecnico";
 import AdminDashboard from "../pages/Admin/Dashboard";
 import AdminUsuarios from "../pages/Admin/Usuarios";
 import AdminTarjetas from "../pages/Admin/Tarjetas";
@@ -44,6 +45,14 @@ const router = createBrowserRouter([
     element: (
       <ProtectedRoute>
         <TarjetasPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/soporte",
+    element: (
+      <ProtectedRoute>
+        <SoporteTecnicoPage />
       </ProtectedRoute>
     ),
   },

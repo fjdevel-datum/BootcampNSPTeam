@@ -201,11 +201,21 @@ export default function EventDetailPage() {
     }
   };
 
+  const parseIsoDateAsLocal = (valor: string) => {
+    const soloFecha = valor.split("T")[0];
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(soloFecha);
+    if (!match) {
+      return new Date(valor);
+    }
+    const [, year, month, day] = match;
+    return new Date(Number(year), Number(month) - 1, Number(day));
+  };
+
   const formatFecha = (valor: string | null) => {
     if (!valor) {
       return "Sin fecha";
     }
-    const fecha = new Date(valor);
+    const fecha = parseIsoDateAsLocal(valor);
     if (Number.isNaN(fecha.getTime())) {
       return valor;
     }
@@ -953,9 +963,15 @@ export default function EventDetailPage() {
           ) : hasFilteredGastos ? (
             <div className="space-y-4">
               {gastosFiltrados.map((gasto) => {
-                const montoOriginal = gasto.monto ?? 0;
-                const moneda = gasto.moneda || "USD";
+                const montoOriginal = Number(gasto.monto ?? 0);
+                const moneda = (gasto.moneda ?? "USD").trim().toUpperCase();
                 const montoFormateado = formatCurrency(montoOriginal, moneda);
+                const montoUsd = gasto.montoUsd;
+                const mostrarConversionUsd =
+                  moneda !== "USD" && montoUsd != null && Number.isFinite(Number(montoUsd));
+                const montoUsdFormateado = mostrarConversionUsd
+                  ? formatCurrency(Number(montoUsd), "USD")
+                  : null;
                 const fechaLegible = formatFecha(gasto.fecha);
                 return (
                   <div
@@ -972,9 +988,14 @@ export default function EventDetailPage() {
                             ? gasto.descripcion
                             : "Gasto sin descripcion"}
                         </p>
-                        <p className="text-base font-bold text-slate-900">
-                          {montoFormateado}
-                        </p>
+                        <div className="text-right text-base text-slate-900">
+                          <p className="font-bold">{montoFormateado}</p>
+                          {mostrarConversionUsd && montoUsdFormateado && (
+                            <span className="mt-1 block text-xs font-medium text-slate-500">
+                              ~ {montoUsdFormateado} USD
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500 md:text-sm">
                         <span className="inline-flex items-center gap-1">

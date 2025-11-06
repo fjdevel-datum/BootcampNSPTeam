@@ -98,11 +98,13 @@ export default function EventDetailPage() {
   // Estados para manejo de imagenes y camara
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
+  const [isVideoReady, setIsVideoReady] = useState(false);
 
   // Referencias
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const gastoSearchInputRef = useRef<HTMLInputElement | null>(null);
   const previewUrlRef = useRef<string | null>(null);
   const feedbackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -442,8 +444,34 @@ export default function EventDetailPage() {
       if (feedbackTimeoutRef.current) {
         clearTimeout(feedbackTimeoutRef.current);
       }
+      // Limpiar el stream de la cámara al desmontar el componente
+      if (stream) {
+        stream.getTracks().forEach((track) => track.stop());
+      }
     };
-  }, []);
+  }, [stream]);
+
+  // Efecto para asignar el stream al video cuando el modal se abre
+  useEffect(() => {
+    if (isCameraOpen && stream && videoRef.current) {
+      videoRef.current.srcObject = stream;
+      // Asegurarse de que el video se reproduce
+      videoRef.current.play().catch((error) => {
+        console.error("Error al reproducir el video:", error);
+      });
+      
+      // Log para depuración
+      videoRef.current.addEventListener('loadedmetadata', () => {
+        console.log('Video cargado. Dimensiones:', videoRef.current?.videoWidth, 'x', videoRef.current?.videoHeight);
+        setIsVideoReady(true);
+      });
+    }
+    
+    // Limpiar el estado cuando se cierra la cámara
+    if (!isCameraOpen) {
+      setIsVideoReady(false);
+    }
+  }, [isCameraOpen, stream]);
 
   const handleDownloadPreview = () => {
     if (!previewData) {
@@ -596,14 +624,26 @@ export default function EventDetailPage() {
     if (!ensureEventoIdentificado()) {
       return;
     }
+    
+    // En dispositivos móviles, usar el input file con capture para activar la cámara nativa
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    if (isMobile && cameraInputRef.current) {
+      // En móviles, usar el input file con capture para abrir la cámara nativa
+      cameraInputRef.current.click();
+      return;
+    }
+    
+    // En desktop, usar getUserMedia para mostrar preview de la cámara
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment" }, // Usa camara trasera en moviles
+        video: { 
+          facingMode: "user", // Usa camara frontal por defecto
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        },
       });
       setStream(mediaStream);
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-      }
       setIsCameraOpen(true);
     } catch (error) {
       console.error("Error accessing camera:", error);
@@ -618,6 +658,7 @@ export default function EventDetailPage() {
       setStream(null);
     }
     setIsCameraOpen(false);
+    setIsVideoReady(false);
   };
 
   const navigateToGastoForm = (state: NavigateStatePayload) => {
@@ -646,27 +687,45 @@ export default function EventDetailPage() {
       const canvas = canvasRef.current;
       const context = canvas.getContext("2d");
 
-      if (context) {
+      if (context && video.videoWidth > 0 && video.videoHeight > 0) {
+        // Establecer el tamaño del canvas al tamaño real del video
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
-        context.drawImage(video, 0, 0);
+        
+        // Dibujar el video en el canvas (espejo horizontal para que se vea natural)
+        context.save();
+        context.scale(-1, 1);
+        context.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
+        context.restore();
 
         const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
+        
+        if (!dataUrl || dataUrl === "data:,") {
+          alert("No se pudo capturar la imagen. Intenta de nuevo.");
+          return;
+        }
+        
         try {
           const file = await dataUrlToFile(dataUrl, `captura-${Date.now()}.jpg`);
 
+          // Cerrar la cámara ANTES de navegar
           closeCamera();
 
-          navigateToGastoForm({
-            imageData: dataUrl,
-            imageType: "camera",
-            fileName: file.name,
-            sourceFile: file,
-          });
+          // Pequeño delay para asegurar que la cámara se cierre completamente
+          setTimeout(() => {
+            navigateToGastoForm({
+              imageData: dataUrl,
+              imageType: "camera",
+              fileName: file.name,
+              sourceFile: file,
+            });
+          }, 100);
         } catch (error) {
           console.error("Error preparando la imagen capturada:", error);
           alert("No se pudo preparar la imagen capturada. Intenta de nuevo.");
         }
+      } else {
+        alert("La camara no esta lista. Espera un momento e intenta de nuevo.");
       }
     }
   };
@@ -701,6 +760,31 @@ export default function EventDetailPage() {
       reader.readAsDataURL(file);
     }
     // Limpiar el input para permitir seleccionar el mismo archivo nuevamente
+    if (event.target) {
+      event.target.value = "";
+    }
+  };
+
+  // Funcion para manejar foto desde camara nativa (mobile)
+  const handleCameraCapture = (event: ChangeEvent<HTMLInputElement>) => {
+    if (!ensureEventoIdentificado()) {
+      return;
+    }
+    const file = event.target.files?.[0];
+    if (file && file.type.startsWith("image/")) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const dataUrl = (e.target?.result as string) || "";
+        navigateToGastoForm({
+          imageData: dataUrl,
+          imageType: "camera",
+          fileName: file.name,
+          sourceFile: file,
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+    // Limpiar el input para permitir capturar nuevamente
     if (event.target) {
       event.target.value = "";
     }
@@ -1234,6 +1318,16 @@ export default function EventDetailPage() {
         className="hidden"
       />
 
+      {/* Input oculto para activar camara nativa en dispositivos moviles */}
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={handleCameraCapture}
+        className="hidden"
+      />
+
       {/* Modal de Camara */}
       {isCameraOpen && (
         <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center">
@@ -1251,14 +1345,24 @@ export default function EventDetailPage() {
               </div>
 
               {/* Vista previa de la camara */}
-              <div className="relative bg-slate-900 rounded-lg overflow-hidden mb-4">
+              <div className="relative bg-black rounded-lg overflow-hidden mb-4" style={{ aspectRatio: '16/9' }}>
                 <video
                   ref={videoRef}
                   autoPlay
                   playsInline
                   muted
-                  className="w-full h-64 md:h-80 object-cover"
+                  className="w-full h-full object-cover"
+                  style={{ transform: 'scaleX(-1)' }}
                 />
+                {/* Indicador de carga mientras la camara se inicializa */}
+                {!isVideoReady && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                    <div className="text-center text-white">
+                      <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
+                      <p className="text-sm">Iniciando cámara...</p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Botones de accion */}
@@ -1271,7 +1375,8 @@ export default function EventDetailPage() {
                 </button>
                 <button
                   onClick={capturePhoto}
-                  className="px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium transition flex items-center gap-2"
+                  disabled={!isVideoReady}
+                  className="px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium transition flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-teal-600"
                 >
                   <Camera className="h-5 w-5" />
                   Capturar

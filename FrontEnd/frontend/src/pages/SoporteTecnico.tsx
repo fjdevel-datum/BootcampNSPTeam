@@ -135,7 +135,7 @@ export default function SoporteTecnicoPage() {
               </p>
               <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
                 <p className="text-sm font-medium text-slate-900 mb-1">Datum Travels - Oficina Principal</p>
-                <p className="text-sm text-slate-600">Boulevard Universitario, Edificio Innovación</p>
+                <p className="text-sm text-slate-600">World Trade Center San Salvador, San Salvador</p>
                 <p className="text-sm text-slate-600">San Salvador, El Salvador</p>
               </div>
             </div>

@@ -142,24 +142,6 @@ export default function SoporteTecnicoPage() {
           </div>
         </div>
 
-        {/* Sección de Preguntas Frecuentes */}
-        <div className="mt-12 text-center">
-          <div className="bg-gradient-to-r from-sky-50 to-blue-50 rounded-2xl p-8 border border-sky-200">
-            <h3 className="text-xl font-semibold text-slate-900 mb-3">¿Tienes una pregunta rápida?</h3>
-            <p className="text-slate-600 mb-6 max-w-2xl mx-auto">
-              Antes de contactarnos, revisa nuestra sección de preguntas frecuentes. 
-              Puede que ya tengamos la respuesta que buscas.
-            </p>
-            <button
-              onClick={() => navigate("/home")}
-              className="inline-flex items-center gap-2 bg-sky-600 hover:bg-sky-700 text-white font-medium px-6 py-3 rounded-lg transition shadow-lg shadow-sky-600/25"
-            >
-              <HelpCircle className="h-5 w-5" />
-              Ver Preguntas Frecuentes
-            </button>
-          </div>
-        </div>
-
         {/* Botón Regresar */}
         <div className="mt-8 text-center">
           <button

@@ -1,7 +1,7 @@
-﻿import { ArrowRight, Bell, CreditCard, Menu, Plus, Search, Trash2, X, HelpCircle } from "lucide-react";
+﻿import { ArrowRight, CreditCard, Menu, Plus, Search, Trash2, X, HelpCircle } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import type { FormEvent, ReactNode } from "react";
+import type { FormEvent } from "react";
 import { eventosService } from "../services/eventos";
 import type { EventoBackend } from "../types/event";
 import { useAuth } from "../hooks/useAuth";
@@ -114,18 +114,6 @@ export default function HomePage() {
         </button>
 
         <div className="flex items-center gap-4">
-          <ActionIcon
-            label="Buscar"
-            onClick={() => {
-              searchInputRef.current?.focus();
-            }}
-          >
-            <Search className="h-5 w-5" />
-          </ActionIcon>
-          <ActionIcon label="Notificaciones">
-            <Bell className="h-5 w-5" />
-          </ActionIcon>
-
           {/* Dropdown de perfil */}
           <div className="relative">
             <button
@@ -467,28 +455,6 @@ export default function HomePage() {
   );
 }
 
-function ActionIcon({
-  children,
-  label,
-  onClick,
-}: {
-  children: ReactNode;
-  label: string;
-  onClick?: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={label}
-      className="relative inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition hover:bg-slate-200"
-    >
-      {children}
-      <span className="sr-only">{label}</span>
-    </button>
-  );
-}
-
 interface EventButtonProps {
   label: string;
   colorClass: string;
@@ -548,3 +514,4 @@ function normalizeText(text: string) {
     .toLowerCase()
     .trim();
 }
+

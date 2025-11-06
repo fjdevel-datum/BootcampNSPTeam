@@ -10,12 +10,16 @@ Write-Host "║   DATUM TRAVELS - INICIO EN RED LOCAL (LAN)            ║" -For
 Write-Host "╚══════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
 Write-Host ""
 
-# Verificar que existe el archivo .env
-if (-not (Test-Path ".env")) {
-    Write-Host "⚠️  ADVERTENCIA: No se encontró el archivo .env" -ForegroundColor Yellow
-    Write-Host "   Se usarán las variables de entorno por defecto" -ForegroundColor Yellow
-    Write-Host ""
-}
+# Copiar configuración LAN
+Write-Host "🔧 Configurando modo LAN (192.168.1.6)..." -ForegroundColor Cyan
+Copy-Item .env.lan .env -Force
+
+Write-Host "✅ Configuración aplicada:" -ForegroundColor Green
+Write-Host "   - Keycloak: http://192.168.1.6:8180" -ForegroundColor White
+Write-Host "   - Backend: http://192.168.1.6:8081" -ForegroundColor White
+Write-Host "   - OCR: http://192.168.1.6:8080" -ForegroundColor White
+Write-Host "   - Frontend: http://192.168.1.6:5173" -ForegroundColor White
+Write-Host ""
 
 # Mostrar IP local
 Write-Host "🌐 IP Local de tu PC:" -ForegroundColor Green

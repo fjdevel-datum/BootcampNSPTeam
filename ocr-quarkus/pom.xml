@@ -93,16 +93,11 @@
       <version>12.23.0</version>
     </dependency>
 
-    <dependency>
-      <groupId>io.quarkus</groupId>
-      <artifactId>quarkus-smallrye-jwt</artifactId>
-    </dependency>
-
-    <!-- Security 
+    <!-- Security OIDC (igual que el backend principal) -->
     <dependency>
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-oidc</artifactId>
-    </dependency>-->
+    </dependency>
 
     <!-- Tests -->
     <dependency>

@@ -200,16 +200,27 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     proxy: {
+      // OCR endpoint (análisis de imágenes)
       '/api/ocr': {
         target: ocrTarget,
         changeOrigin: true,
         secure: false
       },
-      '^/api/gastos/\\d+/archivo': {
+      // Upload y download de archivos de gastos (van al OCR service)
+      '/api/gastos': {
         target: ocrTarget,
         changeOrigin: true,
-        secure: false
+        secure: false,
+        bypass: (req) => {
+          // Solo enviar al OCR service si es un request de archivo
+          if (req.url?.includes('/archivo')) {
+            return null; // null = usar este proxy
+          }
+          // Para todo lo demás de /api/gastos, usar el backend principal
+          return req.url; // retornar url = bypass, ir al siguiente proxy
+        }
       },
+      // Resto de endpoints API (backend principal)
       '/api': {
         target: backendTarget,
         changeOrigin: true,

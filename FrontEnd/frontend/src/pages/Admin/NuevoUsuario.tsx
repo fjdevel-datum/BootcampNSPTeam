@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent, type FormEvent } from "react";
+import { useState, useEffect, type ChangeEvent, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -16,6 +16,8 @@ import {
 } from "lucide-react";
 import { crearEmpleado } from "../../services/empleados";
 import type { EmpleadoResponse } from "../../types/empleado";
+import { obtenerDepartamentos, obtenerCargos, obtenerEmpresas } from "../../services/catalogos";
+import type { Departamento, Cargo, Empresa } from "../../types/catalogos";
 
 const INITIAL_FORM = {
   nombre: "",
@@ -40,10 +42,45 @@ export default function AdminNuevoUsuario() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [createdEmpleado, setCreatedEmpleado] = useState<EmpleadoResponse | null>(null);
 
-  const handleChange = (field: FormField) => (event: ChangeEvent<HTMLInputElement>) => {
+  // Estados para los catálogos
+  const [departamentos, setDepartamentos] = useState<Departamento[]>([]);
+  const [cargos, setCargos] = useState<Cargo[]>([]);
+  const [empresas, setEmpresas] = useState<Empresa[]>([]);
+  const [loadingCatalogos, setLoadingCatalogos] = useState(true);
+
+  // Cargar catálogos al montar el componente
+  useEffect(() => {
+    const cargarCatalogos = async () => {
+      try {
+        const [depts, crgs, emps] = await Promise.all([
+          obtenerDepartamentos(),
+          obtenerCargos(),
+          obtenerEmpresas(),
+        ]);
+        setDepartamentos(depts);
+        setCargos(crgs);
+        setEmpresas(emps);
+      } catch (error) {
+        console.error("Error al cargar catálogos:", error);
+        setSubmitError("No se pudieron cargar los catálogos. Intenta recargar la página.");
+      } finally {
+        setLoadingCatalogos(false);
+      }
+    };
+    cargarCatalogos();
+  }, []);
+
+  const handleChange = (field: FormField) => (event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    let value = event.target.value;
+    
+    // Validación especial para teléfono: solo números, máximo 8 dígitos
+    if (field === "telefono") {
+      value = value.replace(/\D/g, "").slice(0, 8);
+    }
+
     setForm((prev) => ({
       ...prev,
-      [field]: event.target.value,
+      [field]: value,
     }));
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: undefined }));
@@ -91,8 +128,11 @@ export default function AdminNuevoUsuario() {
       }
     });
 
-    if (form.telefono && form.telefono.length < 8) {
-      newErrors.telefono = "Ingresa un telefono valido.";
+    // Validación mejorada para teléfono: debe tener exactamente 8 dígitos
+    if (form.telefono) {
+      if (form.telefono.length !== 8) {
+        newErrors.telefono = "El teléfono debe tener exactamente 8 dígitos.";
+      }
     }
 
     setErrors(newErrors);
@@ -204,12 +244,14 @@ export default function AdminNuevoUsuario() {
               type="tel"
               value={form.telefono}
               onChange={handleChange("telefono")}
-              placeholder="+503 7000 0000"
+              placeholder="70000000"
+              maxLength={8}
               className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                 errors.telefono ? "border-red-500" : "border-slate-300"
               }`}
             />
         </div>
+        <p className="mt-1 text-xs text-slate-500">Solo números, exactamente 8 dígitos</p>
         {errors.telefono && <p className="mt-1 text-sm text-red-600">{errors.telefono}</p>}
       </div>
 
@@ -258,70 +300,93 @@ export default function AdminNuevoUsuario() {
           Configuracion de acceso
         </h2>
         <p className="text-sm text-slate-500">
-          Ingresa los identificadores que relacionan al empleado con el departamento, el cargo y la empresa.
+          Selecciona el departamento, cargo y empresa del empleado.
         </p>
 
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-2">
-            ID Departamento <span className="text-red-500">*</span>
-          </label>
-          <div className="relative">
-            <Building2 className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="number"
-              min={1}
-              value={form.idDepartamento}
-              onChange={handleChange("idDepartamento")}
-              placeholder="Ej. 1"
-              className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                errors.idDepartamento ? "border-red-500" : "border-slate-300"
-              }`}
-            />
+        {loadingCatalogos ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+            <span className="ml-2 text-slate-600">Cargando opciones...</span>
           </div>
-          {errors.idDepartamento && (
-            <p className="mt-1 text-sm text-red-600">{errors.idDepartamento}</p>
-          )}
-        </div>
+        ) : (
+          <>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Departamento <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <Building2 className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <select
+                  value={form.idDepartamento}
+                  onChange={handleChange("idDepartamento")}
+                  className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white ${
+                    errors.idDepartamento ? "border-red-500" : "border-slate-300"
+                  }`}
+                >
+                  <option value="">Selecciona un departamento</option>
+                  {departamentos.map((dept) => (
+                    <option key={dept.idDepartamento} value={dept.idDepartamento}>
+                      {dept.nombreDepart}
+                      {dept.descripcion ? ` - ${dept.descripcion}` : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {errors.idDepartamento && (
+                <p className="mt-1 text-sm text-red-600">{errors.idDepartamento}</p>
+              )}
+            </div>
 
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-2">
-            ID Cargo <span className="text-red-500">*</span>
-          </label>
-          <div className="relative">
-            <Briefcase className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="number"
-              min={1}
-              value={form.idCargo}
-              onChange={handleChange("idCargo")}
-              placeholder="Ej. 2"
-              className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                errors.idCargo ? "border-red-500" : "border-slate-300"
-              }`}
-            />
-          </div>
-          {errors.idCargo && <p className="mt-1 text-sm text-red-600">{errors.idCargo}</p>}
-        </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Cargo <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <Briefcase className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <select
+                  value={form.idCargo}
+                  onChange={handleChange("idCargo")}
+                  className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white ${
+                    errors.idCargo ? "border-red-500" : "border-slate-300"
+                  }`}
+                >
+                  <option value="">Selecciona un cargo</option>
+                  {cargos.map((cargo) => (
+                    <option key={cargo.idCargo} value={cargo.idCargo}>
+                      {cargo.nombre}
+                      {cargo.descripcion ? ` - ${cargo.descripcion}` : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {errors.idCargo && <p className="mt-1 text-sm text-red-600">{errors.idCargo}</p>}
+            </div>
 
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-2">
-            ID Empresa <span className="text-red-500">*</span>
-          </label>
-          <div className="relative">
-            <Building className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="number"
-              min={1}
-              value={form.idEmpresa}
-              onChange={handleChange("idEmpresa")}
-              placeholder="Ej. 3"
-              className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                errors.idEmpresa ? "border-red-500" : "border-slate-300"
-              }`}
-            />
-          </div>
-          {errors.idEmpresa && <p className="mt-1 text-sm text-red-600">{errors.idEmpresa}</p>}
-        </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Empresa <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <Building className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <select
+                  value={form.idEmpresa}
+                  onChange={handleChange("idEmpresa")}
+                  className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white ${
+                    errors.idEmpresa ? "border-red-500" : "border-slate-300"
+                  }`}
+                >
+                  <option value="">Selecciona una empresa</option>
+                  {empresas.map((empresa) => (
+                    <option key={empresa.idEmpresa} value={empresa.idEmpresa}>
+                      {empresa.nombreEmpresa}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {errors.idEmpresa && <p className="mt-1 text-sm text-red-600">{errors.idEmpresa}</p>}
+            </div>
+          </>
+        )}
       </section>
 
       {submitError && (

@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.NotFoundException;
 
 import org.acme.ocrquarkus.entity.Gasto;
@@ -13,10 +14,13 @@ import org.acme.ocrquarkus.repository.GastoRepository;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
+import java.time.format.TextStyle;
 import java.time.temporal.ChronoField;
 import java.util.Locale;
 import java.util.UUID;
@@ -64,93 +68,99 @@ public class GastoService {
 
     @Inject
     AzureStorageService azureStorageService;
+
+    @Inject
+    OpenKmStorageService openKmStorageService;
     
     @Transactional
     public Gasto guardarGastoDesdeJson(String jsonStr) throws IOException {
         System.out.println("JSON recibido en GastoService: " + jsonStr);
         JsonNode json = objectMapper.readTree(jsonStr);
         
-        // Extraer datos del JSON
         String nombreEmpresa = json.has("NombreEmpresa") ? json.get("NombreEmpresa").asText() :
                              json.has("Nombre de la empresa") ? json.get("Nombre de la empresa").asText().split(",")[0].trim() :
                              "Desconocido";
+
+        Long idEvento = extractLong(json, true, "IdEvento", "idEvento");
+        Long idTarjeta = extractLong(json, false, "IdTarjeta", "idTarjeta");
+        Long idCategoria = extractLong(json, false, "IdCategoria", "idCategoria");
         
         String descripcion = json.has("Descripcion") ? json.get("Descripcion").asText() : "";
-        // Truncar la descripción si excede los 50 caracteres
         if (descripcion.length() > 50) {
             descripcion = descripcion.substring(0, 47) + "...";
         }
 
-        // Obtener monto total (mantener formato original)
-        // Procesar monto: eliminar símbolo $ y convertir a Double
         String montoStr = json.has("MontoTotal") ? json.get("MontoTotal").asText().replace("$", "").trim() : "0";
-        Double montoTotal = Double.parseDouble(montoStr);
+        BigDecimal montoTotal = parseMonto(montoStr);
 
         String fechaStr = json.has("Fecha") ? json.get("Fecha").asText()
                 : json.has("fecha") ? json.get("fecha").asText()
                 : null;
         LocalDate fecha = parseFecha(fechaStr);
 
-        // Crear y guardar el gasto
         Gasto gasto = new Gasto();
         gasto.lugar = nombreEmpresa;
         gasto.descripcion = descripcion;
         gasto.monto = montoTotal;
         gasto.fecha = fecha;
+        gasto.idEvento = idEvento;
+        gasto.idTarjeta = idTarjeta;
+        gasto.idCategoria = idCategoria;
 
         gastoRepository.persist(gasto);
         return gasto;
     }
 
-    // =============== 📦 ARCHIVOS EN AZURE (por gasto) ===============
+    // =============== Archivos en Azure (por gasto) ===============
 
-    /**
-     * Sube un archivo a Azure y lo asocia al gasto (sobrescribe si ya tenía).
-     * @param gastoId id del gasto
-     * @param bytes contenido del archivo
-     * @param originalName nombre para guardar (p.ej. factura.pdf)
-     * @param contentType MIME (image/png, application/pdf, …)
-     */
     @Transactional
-    public Gasto attachFile(Long gastoId, byte[] bytes, String originalName, String contentType) {
+    public Gasto attachFile(Long gastoId, byte[] bytes, String originalName, String contentType, String userName) {
         Gasto g = gastoRepository.findById(gastoId);
         if (g == null) throw new NotFoundException("Gasto no encontrado: " + gastoId);
 
-        String safeName = (originalName == null || originalName.isBlank())
-                ? "file-" + UUID.randomUUID()
-                : originalName.trim();
-
-        String blobName = "gastos/" + gastoId + "/" + safeName;
-
-        InputStream in = new ByteArrayInputStream(bytes);
+        String safeName = sanitizeFileName(originalName);
+        String userFolder = sanitizeUserFolder(userName);
+        String[] dateSegments = buildDateSegments(g.fecha);
+        String storagePrefix = buildBlobPath(userFolder, dateSegments);
+        String storageFileName = buildStorageFileName(gastoId, safeName);
+        String blobName = storagePrefix + storageFileName;
         String ct = (contentType == null || contentType.isBlank())
                 ? "application/octet-stream" : contentType;
 
+        InputStream in = new ByteArrayInputStream(bytes);
+
         String url = azureStorageService.upload(blobName, in, bytes.length, ct);
 
-        // Guarda metadata en la fila
         g.setBlobName(blobName);
         g.setBlobUrl(url);
         g.setFileContentType(ct);
         g.setFileSize((long) bytes.length);
+        g.setOpenkmDocUuid(
+                openKmStorageService
+                        .store(g.idGasto, storageFileName, bytes, ct, userFolder, dateSegments)
+                        .orElse(null)
+        );
 
         return g;
     }
 
-    /**
-     * Descarga el archivo asociado a un gasto.
-     */
-    public byte[] downloadFile(Long gastoId) throws Exception {
+    public FileDownloadResult downloadFile(Long gastoId) throws Exception {
         Gasto g = gastoRepository.findById(gastoId);
         if (g == null || g.getBlobName() == null) {
             throw new NotFoundException("Gasto o archivo no encontrado");
         }
-        return azureStorageService.download(g.getBlobName());
+
+        byte[] data = azureStorageService.download(g.getBlobName());
+
+        String fileName = extractFileName(g.getBlobName(), gastoId);
+        String contentType = g.getFileContentType();
+        if (contentType == null || contentType.isBlank()) {
+            contentType = inferContentType(fileName, "application/octet-stream");
+        }
+
+        return new FileDownloadResult(data, contentType, fileName);
     }
 
-    /**
-     * Elimina el archivo en Azure y limpia las columnas del gasto.
-     */
     @Transactional
     public boolean removeFile(Long gastoId) {
         Gasto g = gastoRepository.findById(gastoId);
@@ -162,19 +172,68 @@ public class GastoService {
         g.setBlobUrl(null);
         g.setFileContentType(null);
         g.setFileSize(null);
+        g.setOpenkmDocUuid(null);
         return deleted;
     }
 
-    /**
-     * Genera una URL temporal (SAS) de solo lectura para abrir/mostrar el archivo en el frontend.
-     * @param minutes minutos de validez del enlace
-     */
     public String buildTempReadUrl(Long gastoId, int minutes) {
         Gasto g = gastoRepository.findById(gastoId);
         if (g == null || g.getBlobName() == null) {
             throw new NotFoundException("Gasto o archivo no encontrado");
         }
         return azureStorageService.buildReadSasUrl(g.getBlobName(), minutes);
+    }
+
+    private BigDecimal parseMonto(String rawValue) {
+        if (rawValue == null) {
+            return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        }
+        String cleaned = rawValue.trim();
+        if (cleaned.isEmpty()) {
+            return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        }
+        // Mantiene soporte para distintos formatos (1.234,50 | 1,234.50 | 1234.50)
+        try {
+            String numeric = cleaned.replaceAll("[^0-9,.-]", "");
+            if (numeric.isEmpty()) {
+                return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+            }
+            int lastComma = numeric.lastIndexOf(',');
+            int lastDot = numeric.lastIndexOf('.');
+            if (lastComma > lastDot) {
+                numeric = numeric.replace(".", "").replace(',', '.');
+            } else {
+                numeric = numeric.replace(",", "");
+            }
+            BigDecimal value = new BigDecimal(numeric);
+            return value.setScale(2, RoundingMode.HALF_UP);
+        } catch (NumberFormatException ex) {
+            return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        }
+    }
+
+    private Long extractLong(JsonNode json, boolean required, String... names) {
+        for (String name : names) {
+            if (json.has(name) && !json.get(name).isNull()) {
+                JsonNode node = json.get(name);
+                if (node.isNumber()) {
+                    return node.longValue();
+                }
+                if (node.isTextual()) {
+                    String text = node.asText().trim();
+                    if (!text.isEmpty()) {
+                        try {
+                            return Long.parseLong(text);
+                        } catch (NumberFormatException ignored) {
+                        }
+                    }
+                }
+            }
+        }
+        if (required) {
+            throw new BadRequestException("Falta o es invalido el campo " + names[0]);
+        }
+        return null;
     }
 
     private LocalDate parseFecha(String rawValue) {
@@ -190,9 +249,137 @@ public class GastoService {
             try {
                 return LocalDate.parse(candidate, formatter);
             } catch (DateTimeParseException ignored) {
-                // probar el siguiente formato conocido
             }
         }
         return null;
+    }
+
+    private String sanitizeUserFolder(String rawUserName) {
+        return sanitizePathSegment(rawUserName, "sin-usuario");
+    }
+
+    private String sanitizePathSegment(String rawValue, String fallback) {
+        if (rawValue == null) {
+            return fallback;
+        }
+        String sanitized = rawValue.trim();
+        if (sanitized.isEmpty()) {
+            return fallback;
+        }
+        sanitized = sanitized
+                .replace("\\", "-")
+                .replace("/", "-")
+                .replaceAll("[:*?\"<>|]+", "")
+                .replaceAll("\\s{2,}", " ");
+        return sanitized.isEmpty() ? fallback : sanitized;
+    }
+
+    private String sanitizeFileName(String originalName) {
+        String fallback = "file-" + UUID.randomUUID();
+        if (originalName == null || originalName.isBlank()) {
+            return fallback;
+        }
+        String sanitized = originalName.trim()
+                .replace("\\", "-")
+                .replace("/", "-")
+                .replaceAll("[:*?\"<>|]+", "")
+                .replaceAll("\\s{2,}", " ");
+        return sanitized.isEmpty() ? fallback : sanitized;
+    }
+
+    private String[] buildDateSegments(LocalDate fecha) {
+        LocalDate today = LocalDate.now();
+        LocalDate effective = (fecha != null && (fecha.isBefore(today) || fecha.isEqual(today)))
+                ? fecha
+                : today;
+        Locale localeEs = new Locale("es", "ES");
+
+        String year = sanitizePathSegment(String.valueOf(effective.getYear()), "sin-fecha");
+        String monthName = effective.getMonth().getDisplayName(TextStyle.FULL, localeEs);
+        monthName = capitalize(monthName, localeEs);
+        String month = sanitizePathSegment(monthName, "sin-fecha");
+
+        return new String[]{year, month};
+    }
+
+    private String buildBlobPath(String userFolder, String[] dateSegments) {
+        StringBuilder builder = new StringBuilder("gastos/")
+                .append(userFolder)
+                .append("/");
+        for (String segment : dateSegments) {
+            builder.append(segment).append("/");
+        }
+        return builder.toString();
+    }
+
+    private String buildStorageFileName(Long gastoId, String safeName) {
+        String prefix = (gastoId != null) ? gastoId + "-" : "";
+        return prefix + safeName;
+    }
+
+    private String extractFileName(String blobName, Long gastoId) {
+        if (blobName == null || blobName.isBlank()) {
+            return "gasto-" + gastoId;
+        }
+        int idx = blobName.lastIndexOf('/');
+        if (idx < 0 || idx == blobName.length() - 1) {
+            return blobName;
+        }
+        return blobName.substring(idx + 1);
+    }
+
+    private String inferContentType(String fileName, String fallback) {
+        if (fileName == null || fileName.isBlank()) {
+            return fallback;
+        }
+        String lower = fileName.toLowerCase(Locale.ROOT);
+        if (lower.endsWith(".png")) {
+            return "image/png";
+        }
+        if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) {
+            return "image/jpeg";
+        }
+        if (lower.endsWith(".gif")) {
+            return "image/gif";
+        }
+        if (lower.endsWith(".webp")) {
+            return "image/webp";
+        }
+        if (lower.endsWith(".pdf")) {
+            return "application/pdf";
+        }
+        return fallback;
+    }
+
+    private String capitalize(String value, Locale locale) {
+        if (value == null || value.isBlank()) {
+            return value;
+        }
+        String normalized = value.trim().toLowerCase(locale);
+        return normalized.substring(0, 1).toUpperCase(locale) + normalized.substring(1);
+    }
+
+    public static class FileDownloadResult {
+        private final byte[] data;
+        private final String contentType;
+        private final String fileName;
+
+        public FileDownloadResult(byte[] data, String contentType, String fileName) {
+            this.data = data;
+            this.contentType = contentType;
+            this.fileName = fileName;
+        }
+
+        public byte[] getData() {
+            return data;
+        }
+
+        public String getContentType() {
+            return contentType;
+        }
+
+        public String getFileName() {
+            return fileName;
+        }
     }
 }

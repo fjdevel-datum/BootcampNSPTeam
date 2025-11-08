@@ -20,6 +20,9 @@ public class Usuario {
     @Column(name = "contraseña", length = 50, nullable = false)
     private String contrasena;
 
+    @Column(name = "keycloak_id", length = 100, unique = true)
+    private String keycloakId;
+
     // Relación con Empleado
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_empleado", insertable = false, updatable = false)
@@ -76,5 +79,13 @@ public class Usuario {
 
     public void setEmpleado(Empleado empleado) {
         this.empleado = empleado;
+    }
+
+    public String getKeycloakId() {
+        return keycloakId;
+    }
+
+    public void setKeycloakId(String keycloakId) {
+        this.keycloakId = keycloakId;
     }
 }

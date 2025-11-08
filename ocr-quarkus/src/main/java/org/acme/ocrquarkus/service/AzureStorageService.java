@@ -52,9 +52,17 @@ public class AzureStorageService {
 
     public byte[] download(String blobName) throws Exception {
         BlobClient blob = containerClient.getBlobClient(blobName);
+        if (!blob.exists()) {
+            throw new jakarta.ws.rs.NotFoundException("Blob no encontrado: " + blobName);
+        }
         try (var out = new java.io.ByteArrayOutputStream()) {
             blob.download(out);
             return out.toByteArray();
+        } catch (BlobStorageException e) {
+            if (e.getStatusCode() == 404) {
+                throw new jakarta.ws.rs.NotFoundException("Blob no encontrado: " + blobName);
+            }
+            throw e;
         }
     }
 
@@ -71,6 +79,9 @@ public class AzureStorageService {
     /** SAS de solo lectura por N minutos (útil para frontends). */
     public String buildReadSasUrl(String blobName, int minutes) {
         BlobClient blob = containerClient.getBlobClient(blobName);
+        if (!blob.exists()) {
+            throw new jakarta.ws.rs.NotFoundException("Blob no encontrado: " + blobName);
+        }
 
         BlobSasPermission perm = new BlobSasPermission().setReadPermission(true);
         OffsetDateTime now = OffsetDateTime.now();

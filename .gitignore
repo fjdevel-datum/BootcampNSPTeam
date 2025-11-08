@@ -15,4 +15,14 @@ target/
 .vscode/
 .DS_Store
 Thumbs.db
+
+# Environment variables
 .env
+**/application-dev.properties
+
+# OpenKM runtime data / artifacts
+ocr-quarkus/openkm/oracle-data/
+ocr-quarkus/openkm/oracle-data-backup*/
+ocr-quarkus/openkm/logs/
+ocr-quarkus/openkm/data/
+ocr-quarkus/openkm/archive/

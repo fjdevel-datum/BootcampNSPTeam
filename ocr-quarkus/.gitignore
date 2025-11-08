@@ -38,6 +38,15 @@ nb-configuration.xml
 
 # Local environment
 .env
+src/main/resources/application-dev.properties
+
+# OpenKM runtime artifacts
+openkm/data/*
+!openkm/data/.gitkeep
+openkm/logs/*
+!openkm/logs/.gitkeep
+openkm/oracle-data/*
+!openkm/oracle-data/.gitkeep
 
 # Plugin directory
 /.quarkus/cli/plugins/

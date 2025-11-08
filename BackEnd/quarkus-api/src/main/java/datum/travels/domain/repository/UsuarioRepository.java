@@ -2,6 +2,7 @@ package datum.travels.domain.repository;
 
 import datum.travels.domain.model.Usuario;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -25,4 +26,26 @@ public interface UsuarioRepository {
      * @return Optional con el usuario si existe
      */
     Optional<Usuario> findByIdUsuario(Long idUsuario);
+
+    /**
+     * Busca un usuario por su Keycloak ID
+     *
+     * @param keycloakId ID generado por Keycloak
+     * @return Optional con el usuario si existe
+     */
+    Optional<Usuario> findByKeycloakId(String keycloakId);
+
+    /**
+     * Persiste o actualiza un usuario
+     *
+     * @param usuario Usuario a persistir
+     */
+    void persist(Usuario usuario);
+
+    /**
+     * Lista todos los usuarios registrados.
+     *
+     * @return lista de usuarios
+     */
+    List<Usuario> findAllUsuarios();
 }

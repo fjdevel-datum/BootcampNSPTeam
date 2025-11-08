@@ -93,7 +93,7 @@
       <version>12.23.0</version>
     </dependency>
 
-    <!-- Security -->
+    <!-- Security OIDC (igual que el backend principal) -->
     <dependency>
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-oidc</artifactId>

@@ -1,9 +1,10 @@
-﻿import { ArrowRight, Bell, CreditCard, Menu, Plus, Search, X } from "lucide-react";
-import { useState, useEffect } from "react";
+﻿import { ArrowRight, CreditCard, Menu, Plus, Search, Trash2, X, HelpCircle } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import type { FormEvent, ReactNode } from "react";
+import type { FormEvent } from "react";
 import { eventosService } from "../services/eventos";
 import type { EventoBackend } from "../types/event";
+import { useAuth } from "../hooks/useAuth";
 
 const palette = ["bg-sky-900", "bg-orange-600", "bg-rose-900", "bg-emerald-700"];
 
@@ -11,11 +12,28 @@ export default function HomePage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [eventName, setEventName] = useState("");
   const [eventos, setEventos] = useState<EventoBackend[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+  const [eventoAEliminar, setEventoAEliminar] = useState<EventoBackend | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
   const navigate = useNavigate();
+  const { logout, user } = useAuth();
+
+  // Obtener la primera letra del username para el avatar
+  const getUserInitial = () => {
+    if (!user?.username) return "U";
+    return user.username.charAt(0).toUpperCase();
+  };
+
+  const handleLogout = async () => {
+    console.log('🚪 [Home] Logout iniciado');
+    await logout();
+    console.log('✅ [Home] Logout completado, redirigiendo...');
+    window.location.href = '/';
+  };
 
   // Cargar eventos al montar el componente
   useEffect(() => {
@@ -56,7 +74,32 @@ export default function HomePage() {
     }
   }
 
+  async function handleEliminarEvento() {
+    if (!eventoAEliminar) return;
+
+    try {
+      await eventosService.eliminarEvento(eventoAEliminar.idEvento);
+      
+      // Recargar la lista de eventos
+      await cargarEventos();
+      
+      // Cerrar modal
+      setEventoAEliminar(null);
+    } catch (err) {
+      console.error("Error al eliminar evento:", err);
+      alert("No se pudo eliminar el evento. Intenta de nuevo.");
+    }
+  }
+
   const hasEvents = eventos.length > 0;
+  const normalizedSearch = normalizeText(searchTerm);
+  const eventosFiltrados =
+    normalizedSearch.length === 0
+      ? eventos
+      : eventos.filter((evento) =>
+          normalizeText(evento.nombreEvento).includes(normalizedSearch)
+        );
+  const hasFilteredEvents = eventosFiltrados.length > 0;
 
   return (
     <main className="min-h-screen bg-slate-100 text-slate-900">
@@ -71,20 +114,13 @@ export default function HomePage() {
         </button>
 
         <div className="flex items-center gap-4">
-          <ActionIcon label="Buscar">
-            <Search className="h-5 w-5" />
-          </ActionIcon>
-          <ActionIcon label="Notificaciones">
-            <Bell className="h-5 w-5" />
-          </ActionIcon>
-
           {/* Dropdown de perfil */}
           <div className="relative">
             <button
               onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
               className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-500 text-white text-sm font-semibold hover:bg-sky-600 transition"
             >
-              AL
+              {getUserInitial()}
             </button>
 
             {/* Dropdown Menu */}
@@ -106,7 +142,7 @@ export default function HomePage() {
                     className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-100 transition flex items-center gap-2"
                   >
                     <div className="h-8 w-8 flex items-center justify-center rounded-full bg-sky-500 text-white text-xs font-semibold">
-                      AL
+                      {getUserInitial()}
                     </div>
                     <span className="font-medium">Ver Perfil</span>
                   </button>
@@ -114,10 +150,7 @@ export default function HomePage() {
                   <hr className="my-2 border-slate-200" />
                   
                   <button
-                    onClick={() => {
-                      navigate('/');
-                      setIsProfileDropdownOpen(false);
-                    }}
+                    onClick={handleLogout}
                     className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 transition font-medium"
                   >
                     Cerrar Sesión
@@ -130,11 +163,35 @@ export default function HomePage() {
       </header>
 
       <section className="px-6 py-8 text-center">
-        <p className="text-xs uppercase tracking-[0.35em] text-slate-400">Panel Principal</p>
         <h1 className="mt-4 text-2xl font-semibold tracking-wide text-slate-900">Lista de eventos</h1>
         <p className="mt-2 text-sm text-slate-500">
-          {hasEvents ? "Selecciona un evento para ver los detalles." : "No hay eventos activos por el momento. Puedes registrar uno nuevo."}
+          {hasEvents ? "Selecciona un evento para ver los gastos realizados." : "No hay eventos activos por el momento. Puedes registrar uno nuevo."}
         </p>
+        <div className="mt-6 flex justify-center">
+          <div className="relative w-full max-w-lg">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              ref={searchInputRef}
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder="Buscar evento por nombre"
+              className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-10 text-sm text-slate-900 shadow-sm transition focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-200"
+            />
+            {searchTerm.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchTerm("");
+                  searchInputRef.current?.focus();
+                }}
+                className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition hover:bg-slate-200 hover:text-slate-700"
+                aria-label="Limpiar busqueda"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+        </div>
       </section>
 
       <div className="relative flex-1">
@@ -156,18 +213,41 @@ export default function HomePage() {
               </button>
             </div>
           ) : hasEvents ? (
-            <div className="mx-auto flex w-full max-w-lg flex-col gap-4">
-              {eventos.map((evento, index) => (
-                <EventButton 
-                  key={evento.idEvento} 
-                  label={evento.nombreEvento} 
-                  colorClass={palette[index % palette.length]}
-                  onClick={() => navigate(`/event/${encodeURIComponent(evento.nombreEvento)}`)}
-                  fechaRegistro={evento.fechaRegistro}
-                  estado={evento.estado}
-                />
-              ))}
-            </div>
+            hasFilteredEvents ? (
+              <div className="mx-auto flex w-full max-w-lg flex-col gap-4">
+                {eventosFiltrados.map((evento, index) => (
+                  <EventButton 
+                    key={evento.idEvento} 
+                    label={evento.nombreEvento} 
+                    colorClass={palette[index % palette.length]}
+                    onClick={() =>
+                      navigate(`/event/${encodeURIComponent(evento.nombreEvento)}`, {
+                        state: { evento },
+                      })
+                    }
+                    onDelete={() => setEventoAEliminar(evento)}
+                    fechaRegistro={evento.fechaRegistro}
+                    estado={evento.estado}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-sky-200 bg-white/70 px-6 py-8 text-center text-slate-500">
+                <p className="text-sm font-medium">
+                  No se encontraron eventos que coincidan con "{searchTerm}".
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchTerm("");
+                    searchInputRef.current?.focus();
+                  }}
+                  className="mt-4 inline-flex items-center rounded-md bg-sky-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-sky-500"
+                >
+                  Limpiar busqueda
+                </button>
+              </div>
+            )
           ) : (
             <div className="rounded-2xl border border-dashed border-slate-300 bg-white/70 px-6 py-8 text-center text-slate-500">
               <p className="text-sm">Aun no has agregado eventos a tu calendario.</p>
@@ -274,11 +354,11 @@ export default function HomePage() {
                   >
                     <div className="h-8 w-8 flex items-center justify-center rounded-lg bg-purple-100">
                       <div className="flex h-full w-full items-center justify-center rounded-lg bg-sky-500 text-white text-xs font-semibold">
-                        AL
+                        {getUserInitial()}
                       </div>
                     </div>
                     <div className="flex flex-col">
-                      <span className="font-medium text-slate-700">Ann Lee</span>
+                      <span className="font-medium text-slate-700">{user?.name || user?.username || 'Usuario'}</span>
                       <span className="text-xs text-slate-500">Ver perfil</span>
                     </div>
                     <ArrowRight className="h-4 w-4 text-slate-400 ml-auto" />
@@ -298,11 +378,17 @@ export default function HomePage() {
                     <ArrowRight className="h-4 w-4 text-slate-400 ml-auto" />
                   </button>
 
-                  <button className="w-full flex items-center gap-3 p-3 text-left rounded-lg hover:bg-slate-100 transition">
-                    <div className="h-8 w-8 flex items-center justify-center rounded-lg bg-indigo-100">
-                      <Bell className="h-4 w-4 text-indigo-600" />
+                  <button 
+                    onClick={() => {
+                      navigate('/soporte');
+                      setIsMenuOpen(false);
+                    }}
+                    className="w-full flex items-center gap-3 p-3 text-left rounded-lg hover:bg-slate-100 transition"
+                  >
+                    <div className="h-8 w-8 flex items-center justify-center rounded-lg bg-sky-100">
+                      <HelpCircle className="h-4 w-4 text-sky-600" />
                     </div>
-                    <span className="font-medium text-slate-700">Política de la empresa</span>
+                    <span className="font-medium text-slate-700">Soporte Técnico</span>
                     <ArrowRight className="h-4 w-4 text-slate-400 ml-auto" />
                   </button>
                 </div>
@@ -312,10 +398,7 @@ export default function HomePage() {
 
                 {/* Botón de cerrar sesión */}
                 <button
-                  onClick={() => {
-                    navigate('/');
-                    setIsMenuOpen(false);
-                  }}
+                  onClick={handleLogout}
                   className="w-full flex items-center gap-3 p-3 text-left rounded-lg hover:bg-red-50 text-red-600 transition"
                 >
                   <div className="h-8 w-8 flex items-center justify-center rounded-lg bg-red-100">
@@ -328,20 +411,47 @@ export default function HomePage() {
           </div>
         </div>
       )}
-    </main>
-  );
-}
 
-function ActionIcon({ children, label }: { children: ReactNode; label: string }) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      className="relative inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition hover:bg-slate-200"
-    >
-      {children}
-      <span className="sr-only">{label}</span>
-    </button>
+      {/* Modal de Confirmación de Eliminación */}
+      {eventoAEliminar && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center px-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+            <div className="flex flex-col items-center text-center">
+              <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center mb-4">
+                <Trash2 className="h-6 w-6 text-red-600" />
+              </div>
+              
+              <h2 className="text-lg font-semibold text-slate-900 mb-2">
+                ¿Seguro que quieres eliminar el evento?
+              </h2>
+              
+              <p className="text-sm text-slate-600 mb-1">
+                Evento: <span className="font-semibold">{eventoAEliminar.nombreEvento}</span>
+              </p>
+              
+              <p className="text-sm text-red-600 font-medium mb-6">
+                Todos los gastos registrados serán eliminados también
+              </p>
+
+              <div className="flex gap-3 w-full">
+                <button
+                  onClick={() => setEventoAEliminar(null)}
+                  className="flex-1 px-4 py-2 rounded-lg border border-slate-300 text-slate-700 font-medium hover:bg-slate-50 transition"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleEliminarEvento}
+                  className="flex-1 px-4 py-2 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 transition"
+                >
+                  Eliminar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </main>
   );
 }
 
@@ -349,31 +459,59 @@ interface EventButtonProps {
   label: string;
   colorClass: string;
   onClick?: () => void;
+  onDelete?: () => void;
   fechaRegistro?: string;
   estado?: string;
 }
 
-function EventButton({ label, colorClass, onClick, fechaRegistro, estado }: EventButtonProps) {
+function EventButton({ label, colorClass, onClick, onDelete, fechaRegistro, estado }: EventButtonProps) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex flex-col rounded-2xl px-6 py-5 text-left text-white shadow-lg transition hover:translate-y-0.5 hover:shadow-xl ${colorClass}`}
-    >
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold uppercase tracking-wide">{label}</span>
-        <ArrowRight className="h-5 w-5" />
-      </div>
-      {fechaRegistro && (
-        <div className="mt-2 flex items-center gap-4 text-xs text-white/80">
-          <span>Fecha: {fechaRegistro}</span>
-          {estado && (
-            <span className="px-2 py-1 bg-white/20 rounded-full capitalize">
-              {estado}
-            </span>
+    <div className="relative group">
+      <button
+        type="button"
+        onClick={onClick}
+        className={`w-full flex flex-col rounded-2xl px-6 py-5 text-left text-white shadow-lg transition hover:translate-y-0.5 hover:shadow-xl ${colorClass}`}
+      >
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-semibold uppercase tracking-wide">{label}</span>
+          
+          {/* Botón de eliminar en lugar de la flecha */}
+          {onDelete && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+              className="h-8 w-8 flex items-center justify-center rounded-lg bg-white/10 hover:bg-red-500 text-white transition backdrop-blur-sm"
+              aria-label="Eliminar evento"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
           )}
         </div>
-      )}
-    </button>
+        {fechaRegistro && (
+          <div className="mt-2 flex items-center justify-between text-xs text-white/80">
+            <div className="flex items-center gap-4">
+              <span>Fecha: {fechaRegistro}</span>
+              {estado && (
+                <span className="px-2 py-1 bg-white/20 rounded-full capitalize">
+                  {estado}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+      </button>
+    </div>
   );
 }
+
+function normalizeText(text: string) {
+  return text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+

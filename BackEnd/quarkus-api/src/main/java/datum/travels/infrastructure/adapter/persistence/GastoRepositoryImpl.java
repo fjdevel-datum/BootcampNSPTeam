@@ -1,6 +1,7 @@
 package datum.travels.infrastructure.adapter.persistence;
 
 import datum.travels.domain.model.Gasto;
+import datum.travels.domain.model.Evento;
 import datum.travels.domain.repository.GastoRepository;
 import io.quarkus.hibernate.orm.panache.PanacheRepository;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -20,6 +21,11 @@ public class GastoRepositoryImpl implements PanacheRepository<Gasto>, GastoRepos
     public List<Gasto> findByIdEvento(Long idEvento) {
         return list("evento.idEvento", idEvento);
     }
+    
+    @Override
+    public List<Gasto> findByEvento(Evento evento) {
+        return list("evento", evento);
+    }
 
     @Override
     public Optional<Gasto> findByIdGasto(Long idGasto) {
@@ -37,6 +43,12 @@ public class GastoRepositoryImpl implements PanacheRepository<Gasto>, GastoRepos
     @Transactional
     public boolean deleteById(Long idGasto) {
         return delete("idGasto", idGasto) > 0;
+    }
+
+    @Override
+    @Transactional
+    public int deleteByIdEvento(Long idEvento) {
+        return (int) delete("evento.idEvento", idEvento);
     }
 }
 

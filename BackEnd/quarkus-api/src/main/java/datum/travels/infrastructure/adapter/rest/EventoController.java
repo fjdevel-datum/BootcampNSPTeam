@@ -3,12 +3,17 @@ package datum.travels.infrastructure.adapter.rest;
 import datum.travels.application.dto.evento.ActualizarEstadoRequest;
 import datum.travels.application.dto.evento.CrearEventoRequest;
 import datum.travels.application.dto.evento.EventoResponse;
+import datum.travels.application.dto.reporte.EnviarReporteRequest;
+import datum.travels.application.dto.reporte.EnviarReporteResponse;
 import datum.travels.application.usecase.evento.ActualizarEstadoEventoUseCase;
 import datum.travels.application.usecase.evento.CrearEventoUseCase;
+import datum.travels.application.usecase.evento.EliminarEventoUseCase;
 import datum.travels.application.usecase.evento.ListarEventosUseCase;
 import datum.travels.application.usecase.evento.ObtenerDetalleEventoUseCase;
+import datum.travels.application.usecase.reporte.EnviarReporteGastosUseCase;
 import datum.travels.domain.exception.ResourceNotFoundException;
-import datum.travels.shared.constant.AuthSimulation;
+import datum.travels.shared.util.CurrentUserProvider;
+import io.quarkus.security.Authenticated;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import jakarta.ws.rs.*;
@@ -36,6 +41,7 @@ import java.util.List;
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Tag(name = "Eventos", description = "Gestión de eventos de viaje")
+@Authenticated // 🔐 Requiere JWT válido de Keycloak
 public class EventoController {
 
     @Inject
@@ -50,42 +56,74 @@ public class EventoController {
     @Inject
     ActualizarEstadoEventoUseCase actualizarEstadoEventoUseCase;
 
+    @Inject
+    EliminarEventoUseCase eliminarEventoUseCase;
+
+    @Inject
+    EnviarReporteGastosUseCase enviarReporteGastosUseCase;
+
+    @Inject
+    CurrentUserProvider currentUserProvider;
+
     /**
-     * GET /api/eventos?idEmpleado={id}
-     * Lista todos los eventos de un empleado
+     * GET /api/eventos
+     * Lista todos los eventos del empleado autenticado
      * 
-     * ⚠️ SIMULACIÓN: Si no se proporciona idEmpleado, usa AuthSimulation.ID_EMPLEADO_SIMULADO
-     * Cambiar el valor en: shared/constant/AuthSimulation.java
+     * ✅ INTEGRACIÓN KEYCLOAK: 
+     * - Ya no usa AuthSimulation
+     * - Obtiene automáticamente el idEmpleado del JWT
+     * - Solo retorna eventos del usuario logueado
      */
     @GET
-    @Operation(summary = "Listar eventos", description = "Obtiene todos los eventos de un empleado")
+    @Operation(summary = "Listar mis eventos", description = "Obtiene todos los eventos del empleado autenticado")
     @APIResponses(value = {
             @APIResponse(responseCode = "200", description = "Lista de eventos obtenida exitosamente",
-                    content = @Content(schema = @Schema(implementation = EventoResponse.class)))
+                    content = @Content(schema = @Schema(implementation = EventoResponse.class))),
+            @APIResponse(responseCode = "403", description = "Usuario no vinculado a un empleado")
     })
-    public Response listarEventos(
-            @QueryParam("idEmpleado") Long idEmpleado
-    ) {
-        // Si no se proporciona idEmpleado, usa el valor simulado
-        Long empleadoId = (idEmpleado != null) ? idEmpleado : AuthSimulation.ID_EMPLEADO_SIMULADO;
+    public Response listarEventos() {
+        // Obtiene automáticamente el ID del empleado desde el JWT
+        Long idEmpleado = currentUserProvider.getIdEmpleado()
+            .orElseThrow(() -> new WebApplicationException(
+                "Usuario no vinculado a un empleado. Contacte al administrador.", 
+                Response.Status.FORBIDDEN
+            ));
 
-        List<EventoResponse> eventos = listarEventosUseCase.execute(empleadoId);
+        List<EventoResponse> eventos = listarEventosUseCase.execute(idEmpleado);
         return Response.ok(eventos).build();
     }
 
     /**
      * POST /api/eventos
-     * Crea un nuevo evento
+     * Crea un nuevo evento para el empleado autenticado
+     * 
+     * ✅ INTEGRACIÓN KEYCLOAK: 
+     * - Fuerza que el evento sea del empleado autenticado
+     * - Ignora cualquier idEmpleado que venga en el request
      */
     @POST
     @Operation(summary = "Crear evento", description = "Crea un nuevo evento de viaje o gasto de representación")
     @APIResponses(value = {
             @APIResponse(responseCode = "201", description = "Evento creado exitosamente",
                     content = @Content(schema = @Schema(implementation = EventoResponse.class))),
-            @APIResponse(responseCode = "400", description = "Datos inválidos")
+            @APIResponse(responseCode = "400", description = "Datos inválidos"),
+            @APIResponse(responseCode = "403", description = "Usuario no vinculado a un empleado")
     })
     public Response crearEvento(@Valid CrearEventoRequest request) {
-        EventoResponse evento = crearEventoUseCase.execute(request);
+        // Obtiene el ID del empleado autenticado
+        Long idEmpleado = currentUserProvider.getIdEmpleado()
+            .orElseThrow(() -> new WebApplicationException(
+                "Usuario no vinculado a un empleado. Contacte al administrador.", 
+                Response.Status.FORBIDDEN
+            ));
+
+        // Crea un nuevo request forzando el idEmpleado del usuario autenticado
+        CrearEventoRequest requestConEmpleado = new CrearEventoRequest(
+            request.nombreEvento(),
+            idEmpleado  // 🔐 Forzamos el ID del empleado autenticado
+        );
+
+        EventoResponse evento = crearEventoUseCase.execute(requestConEmpleado);
         return Response.status(Response.Status.CREATED).entity(evento).build();
     }
 
@@ -137,6 +175,63 @@ public class EventoController {
                     .entity(new ErrorResponse(e.getMessage()))
                     .build();
         }
+    }
+
+    /**
+     * DELETE /api/eventos/{id}
+     * Elimina un evento y todos sus gastos asociados
+     */
+    @DELETE
+    @Path("/{id}")
+    @Operation(summary = "Eliminar evento", description = "Elimina un evento y todos sus gastos asociados (CASCADE)")
+    @APIResponses(value = {
+            @APIResponse(responseCode = "204", description = "Evento eliminado exitosamente"),
+            @APIResponse(responseCode = "404", description = "Evento no encontrado")
+    })
+    public Response eliminarEvento(@PathParam("id") Long idEvento) {
+        try {
+            eliminarEventoUseCase.execute(idEvento);
+            return Response.noContent().build();
+        } catch (ResourceNotFoundException e) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity(new ErrorResponse(e.getMessage()))
+                    .build();
+        }
+    }
+
+    /**
+     * POST /api/eventos/{id}/enviar-reporte
+     * Finaliza un evento y envía el reporte de gastos por correo
+     */
+    @POST
+    @Path("/{id}/enviar-reporte")
+    @Operation(
+        summary = "Enviar reporte de gastos", 
+        description = "Finaliza un evento (cambia estado a completado) y envía el reporte de gastos por correo"
+    )
+    @APIResponses(value = {
+        @APIResponse(
+            responseCode = "200", 
+            description = "Reporte enviado exitosamente"
+        ),
+        @APIResponse(
+            responseCode = "400", 
+            description = "Datos inválidos en la solicitud"
+        ),
+        @APIResponse(
+            responseCode = "404", 
+            description = "Evento no encontrado"
+        ),
+        @APIResponse(
+            responseCode = "500", 
+            description = "Error al generar o enviar el reporte"
+        )
+    })
+    public EnviarReporteResponse enviarReporte(
+            @PathParam("id") Long idEvento,
+            @Valid EnviarReporteRequest request
+    ) {
+        return enviarReporteGastosUseCase.execute(idEvento, request);
     }
 
     // ═══════════════════════════════════════════════════════════════════════

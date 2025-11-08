@@ -1,4 +1,5 @@
 import type { GastoFormData } from "../types/gasto";
+import { getValidAccessToken } from "./authService";
 
 const DEFAULT_BACKEND_PREFIX = "/api";
 const backendBaseUrl = (() => {
@@ -57,8 +58,16 @@ export async function analyzeExpenseImage(file: File): Promise<OcrAnalysisRespon
   form.append("filename", file.name || DEFAULT_FILE_NAME);
   form.append("contentType", file.type || "application/octet-stream");
 
+  const token = await getValidAccessToken();
+  if (!token) {
+    throw new Error("Sesión expirada. Vuelve a iniciar sesión para procesar la imagen.");
+  }
+
   const response = await fetch(resolveBackendPath("/ocr"), {
     method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
     body: form,
   });
 
@@ -76,10 +85,16 @@ export async function analyzeExpenseImage(file: File): Promise<OcrAnalysisRespon
  * Send the LLM JSON payload to persist the gasto in the backend.
  */
 export async function saveGastoFromLlm(payload: Record<string, unknown>) {
+  const token = await getValidAccessToken();
+  if (!token) {
+    throw new Error("Sesión expirada. Vuelve a iniciar sesión para guardar el gasto.");
+  }
+
   const response = await fetch(resolveBackendPath("/gastos/llm"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify(payload),
   });
@@ -103,8 +118,16 @@ export async function uploadGastoFile(gastoId: number, file: File) {
   form.append("filename", file.name || DEFAULT_FILE_NAME);
   form.append("contentType", file.type || "application/octet-stream");
 
+  const token = await getValidAccessToken();
+  if (!token) {
+    throw new Error("Sesión expirada. Vuelve a iniciar sesión para adjuntar el archivo.");
+  }
+
   const response = await fetch(resolveBackendPath(`/gastos/${gastoId}/archivo`), {
     method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
     body: form,
   });
 
@@ -122,6 +145,51 @@ export async function uploadGastoFile(gastoId: number, file: File) {
     fileSize: number;
     contentType: string;
   }>;
+}
+
+export async function downloadGastoFile(gastoId: number) {
+  const token = await getValidAccessToken();
+  if (!token) {
+    throw new Error("Sesión expirada. Vuelve a iniciar sesión para ver el comprobante.");
+  }
+
+  const response = await fetch(resolveBackendPath(`/gastos/${gastoId}/archivo`), {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    const message = await safeReadText(response);
+    if (response.status === 404) {
+      throw new Error("No existe un comprobante disponible para este gasto.");
+    }
+    throw new Error(
+      `No se pudo obtener el comprobante del gasto (status ${response.status}): ${message || "sin detalle"}`
+    );
+  }
+
+  const blob = await response.blob();
+
+  const disposition = response.headers.get("Content-Disposition") ?? "";
+  let fileName = `gasto-${gastoId}`;
+  const fileNameMatch = disposition.match(/filename\*?=(?:UTF-8'')?["']?([^"';]+)["']?/i);
+  if (fileNameMatch && fileNameMatch[1]) {
+    try {
+      fileName = decodeURIComponent(fileNameMatch[1]);
+    } catch {
+      fileName = fileNameMatch[1];
+    }
+  }
+
+  const contentType = response.headers.get("Content-Type") ?? blob.type ?? "application/octet-stream";
+
+  return {
+    blob,
+    fileName,
+    contentType,
+  };
 }
 
 /**
@@ -171,6 +239,9 @@ export function buildPayloadFromFormData(formData: GastoFormData) {
     Descripcion: formData.descripcion,
     MontoTotal: formData.montoTotal,
     Fecha: formData.fecha,
+    IdCategoria: formData.idCategoria ? Number.parseInt(formData.idCategoria, 10) : undefined,
+    IdTarjeta: formData.idTarjeta ? Number.parseInt(formData.idTarjeta, 10) : undefined,
+    Moneda: formData.moneda || "USD", // Usar la moneda seleccionada por el usuario
   };
 }
 
@@ -198,6 +269,9 @@ function mapToFormData(parsed: Record<string, unknown> | null): GastoFormData {
       descripcion: "",
       montoTotal: "",
       fecha: "",
+      moneda: "USD", // Valor por defecto
+      idCategoria: "",
+      idTarjeta: undefined,
     };
   }
 
@@ -211,6 +285,9 @@ function mapToFormData(parsed: Record<string, unknown> | null): GastoFormData {
     descripcion: pickString(parsed, ["Descripcion", "Descripci\u00f3n", "descripcion"]),
     montoTotal: normalizeAmount(pick(parsed, ["MontoTotal", "Monto Total", "montoTotal"])),
     fecha: normalizeDate(pick(parsed, ["Fecha", "fecha"])),
+    moneda: pickString(parsed, ["Moneda", "moneda", "Currency"]) || "USD", // Extraer moneda del LLM
+    idCategoria: "",
+    idTarjeta: undefined,
   };
 }
 

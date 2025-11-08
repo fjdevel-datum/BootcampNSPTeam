@@ -1,88 +1,132 @@
-import { ArrowLeft, CreditCard, Plus, Trash2, UserPlus } from "lucide-react";
-import { useState } from "react";
+import { ArrowLeft, CreditCard, Plus, Trash2, UserPlus, X, AlertTriangle } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { listarTarjetas, eliminarTarjeta } from "../../services/tarjetas";
+import { getTipoTarjeta, getNombreCompletoEmpleado, formatearNumeroTarjeta } from "../../types/tarjeta";
 
 interface TarjetaEmpresa {
-  id: string;
+  id: number;
   numero: string;
-  tipo: "visa" | "mastercard" | "amex";
+  tipo: "visa" | "mastercard" | "amex" | "other";
   vencimiento: string;
+  banco: string;
   asignadoA: string | null;
   colorClass: string;
+  idPais: number;
+  nombrePais: string;
 }
 
-const tarjetasMock: TarjetaEmpresa[] = [
-  {
-    id: "1",
-    numero: "4532 1234 5678 9010",
-    tipo: "visa",
-    vencimiento: "12/26",
-    asignadoA: "Ann Lee",
-    colorClass: "from-blue-600 to-blue-800",
-  },
-  {
-    id: "2",
-    numero: "5425 2334 3010 9903",
-    tipo: "mastercard",
-    vencimiento: "08/27",
-    asignadoA: "Ann Lee",
-    colorClass: "from-slate-700 to-slate-900",
-  },
-  {
-    id: "3",
-    numero: "3782 822463 10005",
-    tipo: "amex",
-    vencimiento: "03/28",
-    asignadoA: "Juan Pérez",
-    colorClass: "from-emerald-600 to-emerald-800",
-  },
-  {
-    id: "4",
-    numero: "4916 7890 1234 5678",
-    tipo: "visa",
-    vencimiento: "11/27",
-    asignadoA: null,
-    colorClass: "from-purple-600 to-purple-800",
-  },
-  {
-    id: "5",
-    numero: "5123 4567 8901 2345",
-    tipo: "mastercard",
-    vencimiento: "05/29",
-    asignadoA: null,
-    colorClass: "from-orange-600 to-orange-800",
-  },
-  {
-    id: "6",
-    numero: "4111 1111 1111 1111",
-    tipo: "visa",
-    vencimiento: "09/26",
-    asignadoA: "Carlos Ramírez",
-    colorClass: "from-red-600 to-red-800",
-  },
-];
+// Función para generar colores aleatorios para las tarjetas
+function getRandomColorClass(): string {
+  const colors = [
+    "from-blue-600 to-blue-800",
+    "from-slate-700 to-slate-900",
+    "from-emerald-600 to-emerald-800",
+    "from-purple-600 to-purple-800",
+    "from-orange-600 to-orange-800",
+    "from-red-600 to-red-800",
+    "from-indigo-600 to-indigo-800",
+    "from-pink-600 to-pink-800",
+  ];
+  return colors[Math.floor(Math.random() * colors.length)];
+}
 
 export default function AdminTarjetas() {
   const navigate = useNavigate();
-  const [tarjetas, setTarjetas] = useState<TarjetaEmpresa[]>(tarjetasMock);
+  const [tarjetas, setTarjetas] = useState<TarjetaEmpresa[]>([]);
   const [filterAsignadas, setFilterAsignadas] = useState<"todas" | "asignadas" | "disponibles">("todas");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Modal de confirmación de eliminación
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [tarjetaAEliminar, setTarjetaAEliminar] = useState<TarjetaEmpresa | null>(null);
+  const [eliminando, setEliminando] = useState(false);
 
-  const handleDeleteCard = (id: string) => {
-    if (confirm("¿Estás seguro de eliminar esta tarjeta?")) {
-      setTarjetas((prev) => prev.filter((t) => t.id !== id));
+  // Cargar tarjetas desde el backend
+  useEffect(() => {
+    cargarTarjetas();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const cargarTarjetas = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const tarjetasBackend = await listarTarjetas();
+      
+      // Transformar datos del backend al formato del componente
+      const tarjetasTransformadas: TarjetaEmpresa[] = tarjetasBackend.map((t) => ({
+        id: t.idTarjeta,
+        numero: t.numeroTarjeta,
+        tipo: getTipoTarjeta(t.numeroTarjeta),
+        vencimiento: formatearFechaVencimiento(t.fechaExpiracion),
+        banco: t.banco,
+        asignadoA: getNombreCompletoEmpleado(t.empleado),
+        colorClass: getRandomColorClass(),
+        idPais: t.idPais,
+        nombrePais: t.nombrePais,
+      }));
+      
+      setTarjetas(tarjetasTransformadas);
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : "Error al cargar tarjetas";
+      setError(errorMsg);
+      console.error("Error cargando tarjetas:", err);
+    } finally {
+      setLoading(false);
     }
   };
 
+  // Formatear fecha ISO a MM/YY
+  const formatearFechaVencimiento = (fechaISO: string): string => {
+    const fecha = new Date(fechaISO);
+    const mes = String(fecha.getMonth() + 1).padStart(2, "0");
+    const anio = String(fecha.getFullYear()).slice(-2);
+    return `${mes}/${anio}`;
+  };
+
+  const handleDeleteCard = async (id: number) => {
+    const tarjeta = tarjetas.find((t) => t.id === id);
+    if (!tarjeta) return;
+    
+    setTarjetaAEliminar(tarjeta);
+    setShowDeleteModal(true);
+  };
+
+  const confirmarEliminacion = async () => {
+    if (!tarjetaAEliminar) return;
+
+    try {
+      setEliminando(true);
+      await eliminarTarjeta(tarjetaAEliminar.id);
+      await cargarTarjetas();
+      setShowDeleteModal(false);
+      setTarjetaAEliminar(null);
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : "Error al eliminar tarjeta";
+      alert(errorMsg);
+      console.error("Error eliminando tarjeta:", err);
+    } finally {
+      setEliminando(false);
+    }
+  };
+
+  const cancelarEliminacion = () => {
+    setShowDeleteModal(false);
+    setTarjetaAEliminar(null);
+  };
+
   const filteredTarjetas = tarjetas.filter((tarjeta) => {
-    if (filterAsignadas === "asignadas") return tarjeta.asignadoA !== null;
-    if (filterAsignadas === "disponibles") return tarjeta.asignadoA === null;
+    if (filterAsignadas === "asignadas") return tarjeta.asignadoA !== null && tarjeta.asignadoA !== "Sin asignar";
+    if (filterAsignadas === "disponibles") return tarjeta.asignadoA === null || tarjeta.asignadoA === "Sin asignar";
     return true;
   });
 
   const stats = {
     total: tarjetas.length,
-    asignadas: tarjetas.filter((t) => t.asignadoA !== null).length,
-    disponibles: tarjetas.filter((t) => t.asignadoA === null).length,
+    asignadas: tarjetas.filter((t) => t.asignadoA !== null && t.asignadoA !== "Sin asignar").length,
+    disponibles: tarjetas.filter((t) => t.asignadoA === null || t.asignadoA === "Sin asignar").length,
   };
 
   return (
@@ -113,8 +157,35 @@ export default function AdminTarjetas() {
       {/* Content */}
       <div className="px-6 py-8">
         <div className="max-w-7xl mx-auto">
-          {/* Stats */}
-          <div className="grid md:grid-cols-3 gap-6 mb-8">
+          {/* Error Alert */}
+          {error && (
+            <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl">
+              <p className="font-medium">Error</p>
+              <p className="text-sm">{error}</p>
+              <button
+                onClick={cargarTarjetas}
+                className="mt-2 text-sm underline hover:no-underline"
+              >
+                Reintentar
+              </button>
+            </div>
+          )}
+
+          {/* Loading State */}
+          {loading && (
+            <div className="flex items-center justify-center py-12">
+              <div className="text-center">
+                <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+                <p className="text-slate-600">Cargando tarjetas...</p>
+              </div>
+            </div>
+          )}
+
+          {/* Content when not loading */}
+          {!loading && (
+            <>
+              {/* Stats */}
+              <div className="grid md:grid-cols-3 gap-6 mb-8">
             <div className="bg-white rounded-xl p-6 shadow-lg">
               <div className="flex items-center justify-between">
                 <div>
@@ -209,7 +280,7 @@ export default function AdminTarjetas() {
                     </div>
 
                     <div className="flex gap-2">
-                      {tarjeta.asignadoA === null && (
+                      {(tarjeta.asignadoA === null || tarjeta.asignadoA === "Sin asignar") && (
                         <button
                           onClick={() =>
                             navigate(`/admin/tarjetas/${tarjeta.id}/asignar`)
@@ -237,7 +308,7 @@ export default function AdminTarjetas() {
 
                   {/* Número */}
                   <div className="mb-4">
-                    <p className="text-xl font-mono tracking-wider">{tarjeta.numero}</p>
+                    <p className="text-xl font-mono tracking-wider">{formatearNumeroTarjeta(tarjeta.numero)}</p>
                   </div>
 
                   {/* Footer */}
@@ -247,7 +318,7 @@ export default function AdminTarjetas() {
                       <p className="text-sm font-semibold">{tarjeta.vencimiento}</p>
                     </div>
                     <div className="text-right">
-                      {tarjeta.asignadoA ? (
+                      {tarjeta.asignadoA && tarjeta.asignadoA !== "Sin asignar" ? (
                         <>
                           <p className="text-xs opacity-70 mb-1">Asignada a</p>
                           <p className="text-sm font-semibold">{tarjeta.asignadoA}</p>
@@ -264,14 +335,100 @@ export default function AdminTarjetas() {
             ))}
           </div>
 
-          {filteredTarjetas.length === 0 && (
+          {filteredTarjetas.length === 0 && !loading && !error && (
             <div className="text-center py-12">
               <CreditCard className="h-16 w-16 text-slate-300 mx-auto mb-4" />
               <p className="text-slate-500">No hay tarjetas con este filtro</p>
             </div>
           )}
+            </>
+          )}
         </div>
       </div>
+
+      {/* Modal de Confirmación de Eliminación */}
+      {showDeleteModal && tarjetaAEliminar && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 relative">
+            {/* Header */}
+            <div className="flex items-start gap-4 mb-6">
+              <div className="h-12 w-12 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <X className="h-6 w-6 text-red-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-xl font-bold text-slate-900 mb-1">
+                  Eliminar Tarjeta
+                </h3>
+                <p className="text-sm text-slate-600">
+                  Esta acción no se puede deshacer
+                </p>
+              </div>
+            </div>
+
+            {/* Información de la tarjeta */}
+            <div className="bg-slate-50 rounded-xl p-4 mb-6">
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Número:</span>
+                  <span className="font-mono font-medium text-slate-900">
+                    {formatearNumeroTarjeta(tarjetaAEliminar.numero)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Banco:</span>
+                  <span className="font-medium text-slate-900">
+                    {tarjetaAEliminar.banco}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Asignada a:</span>
+                  <span className="font-medium text-slate-900">
+                    {tarjetaAEliminar.asignadoA || "Sin asignar"}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Advertencia */}
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-6">
+              <p className="text-sm text-amber-800 flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                <span>
+                  Al eliminar esta tarjeta, se perderá toda la información asociada.
+                </span>
+              </p>
+            </div>
+
+            {/* Botones */}
+            <div className="flex gap-3">
+              <button
+                onClick={cancelarEliminacion}
+                disabled={eliminando}
+                className="flex-1 px-4 py-2.5 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmarEliminacion}
+                disabled={eliminando}
+                className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
+              >
+                {eliminando ? (
+                  <>
+                    <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Eliminando...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4" />
+                    Eliminar
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

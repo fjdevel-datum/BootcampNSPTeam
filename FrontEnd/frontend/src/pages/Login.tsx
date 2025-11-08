@@ -2,11 +2,18 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 import type { ReactElement } from "react";
 import { User, Lock } from "lucide-react";
+import { useAuth } from "../hooks/useAuth";
+import * as authService from "../services/authService";
 
 import datumLogo from "../assets/datumredsoft.png"; 
 import googleLogo from "../assets/google.png";
 
+// 🔥 LOG INMEDIATO AL CARGAR EL MÓDULO
+console.log('🔥🔥🔥 Login.tsx CARGADO - VERSIÓN NUEVA CON window.location.replace 🔥🔥🔥');
+
 export default function LoginPage() {
+  const { login } = useAuth();
+  
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -16,21 +23,29 @@ export default function LoginPage() {
     e.preventDefault();
     setError(null);
     setLoading(true);
+    
     try {
-      // TODO: Integrar con Keycloak (OIDC)
-      await new Promise((r) => setTimeout(r, 600));
-      console.log({ username, password });
+      await login({ username, password });
+      
+      // Determinar la ruta según el rol
+      const targetPath = authService.isAdmin() ? '/admin' : '/home';
+      
+      // Usar window.location.replace para NO dejar el login en el historial
+      // Esto es similar a lo que hacen Google, Facebook, Netflix
+      window.location.replace(targetPath);
     } catch (err) {
-      console.error(err);
-      setError("Algo salió mal. Intenta de nuevo.");
+      console.error('Error al iniciar sesión:', err);
+      setError(err instanceof Error ? err.message : 'Credenciales inválidas');
     } finally {
       setLoading(false);
     }
   }
 
   function handleGoogleSignIn() {
-    // TODO: Redirigir a Keycloak con IdP Google
-    console.log("Google sign-in click");
+    // TODO: Implementar Google Sign-In con Keycloak
+    // Redirigir a: http://localhost:8180/realms/datum-travels/protocol/openid-connect/auth
+    // con parámetros: client_id, redirect_uri, response_type=code, scope=openid
+    console.log("Google sign-in - Pendiente de implementar");
   }
 
   return (
@@ -158,3 +173,4 @@ function GoogleButton({ onClick }: { onClick: () => void }) {
     </button>
   );
 }
+

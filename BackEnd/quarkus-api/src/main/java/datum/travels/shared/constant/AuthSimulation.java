@@ -8,7 +8,8 @@ package datum.travels.shared.constant;
  * 📝 Para cambiar el usuario simulado:
  * 1. Modifica el valor de ID_EMPLEADO_SIMULADO
  * 2. Asegúrate de que ese ID exista en la tabla Empleado de tu BD
- * 3. Reinicia la aplicación Quarkus
+ * 3. Guarda el archivo (Ctrl+S)
+ * 4. Espera 2-3 segundos para hot reload
  */
 public final class AuthSimulation {
     

@@ -2,7 +2,7 @@
 
 ## Contexto del Proyecto
 Aplicación Web: Datum Travels - Sistema de Gestión de Gastos Corporativos
-Objetivo: Automatizar el registro, control y reporte de gastos de empleados durante viajes de negocios y gastos de representación, reemplazando el proceso manual actual (Excel/Word) con una solución web responsiva que utiliza OCR para captura automática de datos desde facturas/tickets.
+Objetivo: Automatizar el registro, control y reporte de gastos de empleados durante viajes de negocios y gastos de representación, reemplazando el proceso manual actual (Excel/Word) con una solución web responsiva que utiliza OCR y un modelo pequeño de IA para capturar automática de datos desde facturas/tickets.
 
 Sistema de gestión de gastos de viaje empresarial con:
 - Backend: Quarkus (Java 21) + Oracle
@@ -81,6 +81,7 @@ Los viáticos varían según región
 - ❌ NO mezclar lógica de negocio en Controllers REST
 - ❌ NO usar `any` en TypeScript
 - ❌ NO exponer entidades JPA directamente en REST APIs (usar DTOs)
+- ❌ NO generar resumenes .md de explicacion
 
 ## Librerías Disponibles
 ### Backend

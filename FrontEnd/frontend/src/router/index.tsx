@@ -1,56 +1,148 @@
 ﻿import { createBrowserRouter } from "react-router-dom";
+import ProtectedRoute from "../components/ProtectedRoute";
+import RoleGuard from "../components/RoleGuard";
 import HomePage from "../pages/Home";
 import LoginPage from "../pages/Login";
 import ProfilePage from "../pages/profile";
 import EventDetailPage from "../pages/EventDetail";
 import GastoFormPage from "../pages/GastoForm";
 import TarjetasPage from "../pages/Tarjetas";
+import SoporteTecnicoPage from "../pages/SoporteTecnico";
 import AdminDashboard from "../pages/Admin/Dashboard";
 import AdminUsuarios from "../pages/Admin/Usuarios";
 import AdminTarjetas from "../pages/Admin/Tarjetas";
 import AdminPerfil from "../pages/Admin/Perfil";
+import AdminNuevoUsuario from "../pages/Admin/NuevoUsuario";
+import AdminNuevaTarjeta from "../pages/Admin/NuevaTarjeta";
+import AdminAsignarTarjeta from "../pages/Admin/AsignarTarjeta";
 
 const router = createBrowserRouter([
+  // Ruta pública - Login
   {
     path: "/",
     element: <LoginPage />,
   },
+  
+  // Rutas protegidas - Requieren autenticación
   {
     path: "/home",
-    element: <HomePage />,
+    element: (
+      <ProtectedRoute>
+        <HomePage />
+      </ProtectedRoute>
+    ),
   },
   {
     path: "/profile",
-    element: <ProfilePage />,
+    element: (
+      <ProtectedRoute>
+        <ProfilePage />
+      </ProtectedRoute>
+    ),
   },
   {
     path: "/tarjetas",
-    element: <TarjetasPage />,
+    element: (
+      <ProtectedRoute>
+        <TarjetasPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/soporte",
+    element: (
+      <ProtectedRoute>
+        <SoporteTecnicoPage />
+      </ProtectedRoute>
+    ),
   },
   {
     path: "/event/:eventName",
-    element: <EventDetailPage />,
+    element: (
+      <ProtectedRoute>
+        <EventDetailPage />
+      </ProtectedRoute>
+    ),
   },
   {
     path: "/event/:eventName/gasto",
-    element: <GastoFormPage />,
+    element: (
+      <ProtectedRoute>
+        <GastoFormPage />
+      </ProtectedRoute>
+    ),
   },
-  // Rutas de Administrador
+  
+  // Rutas de Administrador - Requieren rol 'admin' o 'administrador'
   {
     path: "/admin",
-    element: <AdminDashboard />,
+    element: (
+      <ProtectedRoute>
+        <RoleGuard allowedRoles={['admin', 'administrador']}>
+          <AdminDashboard />
+        </RoleGuard>
+      </ProtectedRoute>
+    ),
   },
   {
     path: "/admin/usuarios",
-    element: <AdminUsuarios />,
+    element: (
+      <ProtectedRoute>
+        <RoleGuard allowedRoles={['admin', 'administrador']}>
+          <AdminUsuarios />
+        </RoleGuard>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/admin/usuarios/nuevo",
+    element: (
+      <ProtectedRoute>
+        <RoleGuard allowedRoles={['admin', 'administrador']}>
+          <AdminNuevoUsuario />
+        </RoleGuard>
+      </ProtectedRoute>
+    ),
   },
   {
     path: "/admin/tarjetas",
-    element: <AdminTarjetas />,
+    element: (
+      <ProtectedRoute>
+        <RoleGuard allowedRoles={['admin', 'administrador']}>
+          <AdminTarjetas />
+        </RoleGuard>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/admin/tarjetas/nueva",
+    element: (
+      <ProtectedRoute>
+        <RoleGuard allowedRoles={['admin', 'administrador']}>
+          <AdminNuevaTarjeta />
+        </RoleGuard>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/admin/tarjetas/:idTarjeta/asignar",
+    element: (
+      <ProtectedRoute>
+        <RoleGuard allowedRoles={['admin', 'administrador']}>
+          <AdminAsignarTarjeta />
+        </RoleGuard>
+      </ProtectedRoute>
+    ),
   },
   {
     path: "/admin/perfil",
-    element: <AdminPerfil />,
+    element: (
+      <ProtectedRoute>
+        <RoleGuard allowedRoles={['admin', 'administrador']}>
+          <AdminPerfil />
+        </RoleGuard>
+      </ProtectedRoute>
+    ),
   },
 ]);
 

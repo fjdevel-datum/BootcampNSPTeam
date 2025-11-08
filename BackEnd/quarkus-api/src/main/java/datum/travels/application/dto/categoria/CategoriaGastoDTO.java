@@ -1,4 +1,6 @@
 package datum.travels.application.dto.categoria;
 
-public class CategoriaGastoDTO {
-}
+public record CategoriaGastoDTO(
+    Long idCategoria,
+    String nombreCategoria
+) {}

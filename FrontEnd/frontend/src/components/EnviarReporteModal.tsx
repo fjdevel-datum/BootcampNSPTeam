@@ -189,11 +189,11 @@ export default function EnviarReporteModal({
           <div>
             <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
               <User size={16} />
-              Nombre del Proveedor
+              Asunto del Correo
             </label>
             <input
               type="text"
-              placeholder="Ej: SUBWAY DE GUATEMALA"
+              placeholder="Ej: Gastos viaje GUATEMALA"
               value={formData.nombreProveedor}
               onChange={(e) =>
                 setFormData({ ...formData, nombreProveedor: e.target.value })

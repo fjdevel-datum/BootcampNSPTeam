@@ -1,0 +1,52 @@
+package datum.travels.application.dto.gasto;
+
+import jakarta.validation.constraints.*;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+
+/**
+ * DTO para registrar un nuevo gasto con soporte multi-moneda
+ * Se usa después de procesar el comprobante con OCR
+ * 
+ * @param idEvento - ID del evento al que pertenece el gasto
+ * @param idCategoria - ID de la categoría del gasto (Transporte, Alimentación, etc.)
+ * @param idTarjeta - ID de la tarjeta corporativa (puede ser null si es efectivo)
+ * @param descripcion - Descripción del gasto
+ * @param lugar - Lugar donde se realizó el gasto
+ * @param fecha - Fecha del gasto
+ * @param monto - Monto del gasto en la moneda original (ej: 34.25)
+ * @param moneda - Código ISO 4217 de la moneda (USD, GTQ, HNL, PAB, EUR)
+ */
+public record CrearGastoRequest(
+    
+    @NotNull(message = "El ID del evento es obligatorio")
+    Long idEvento,
+    
+    @NotNull(message = "El ID de la categoría es obligatorio")
+    Long idCategoria,
+    
+    // idTarjeta es opcional (puede ser null para gastos en efectivo)
+    Long idTarjeta,
+    
+    @NotBlank(message = "La descripción es obligatoria")
+    @Size(max = 50, message = "La descripción no puede exceder 50 caracteres")
+    String descripcion,
+    
+    @NotBlank(message = "El lugar es obligatorio")
+    @Size(max = 100, message = "El lugar no puede exceder 100 caracteres")
+    String lugar,
+    
+    @NotNull(message = "La fecha es obligatoria")
+    LocalDate fecha,
+    
+    @NotNull(message = "El monto es obligatorio")
+    @DecimalMin(value = "0.01", message = "El monto debe ser mayor a 0")
+    BigDecimal monto,
+
+    @NotBlank(message = "El código de moneda es obligatorio")
+    @Pattern(regexp = "^(USD|GTQ|HNL|PAB|EUR)$", 
+    message = "Moneda no válida. Usar: USD, GTQ, HNL, ARS, EUR, BOB, BRL, CLP, COP, PYG, PEN, UYU, DOP, JMD, CAD, MXN, BZD, CRC, NIO, PAB")
+    String moneda
+) {
+}

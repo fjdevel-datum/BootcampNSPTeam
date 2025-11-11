@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Monitor de JWT - Datum Travels</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: linear-gradient(135deg, #1e3a8a 0%, #312e81 100%);
+      min-height: 100vh;
+      padding: 2rem;
+      color: white;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    h1 {
+      text-align: center;
+      margin-bottom: 0.5rem;
+      font-size: 2.5rem;
+    }
+    
+    .subtitle {
+      text-align: center;
+      opacity: 0.8;
+      margin-bottom: 2rem;
+    }
+    
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    
+    .card {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border-radius: 1rem;
+      padding: 1.5rem;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .card h2 {
+      font-size: 1.25rem;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .status {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-top: 0.5rem;
+    }
+    
+    .status-valid {
+      background: #10b981;
+      color: white;
+    }
+    
+    .status-expiring {
+      background: #f59e0b;
+      color: white;
+    }
+    
+    .status-expired {
+      background: #ef4444;
+      color: white;
+    }
+    
+    .status-none {
+      background: #6b7280;
+      color: white;
+    }
+    
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .info-row:last-child {
+      border-bottom: none;
+    }
+    
+    .label {
+      opacity: 0.7;
+      font-size: 0.875rem;
+    }
+    
+    .value {
+      font-weight: 600;
+      font-family: 'Courier New', monospace;
+    }
+    
+    .timeline {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 1rem;
+      padding: 1.5rem;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    
+    .timeline h2 {
+      margin-bottom: 1rem;
+    }
+    
+    .timeline-item {
+      padding: 0.75rem;
+      margin-bottom: 0.5rem;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 0.5rem;
+      border-left: 3px solid #3b82f6;
+      font-size: 0.875rem;
+    }
+    
+    .timeline-item.refresh {
+      border-left-color: #10b981;
+    }
+    
+    .timeline-item.expired {
+      border-left-color: #ef4444;
+    }
+    
+    .time {
+      opacity: 0.6;
+      font-size: 0.75rem;
+    }
+    
+    .progress-bar {
+      background: rgba(255, 255, 255, 0.2);
+      height: 8px;
+      border-radius: 9999px;
+      overflow: hidden;
+      margin-top: 0.5rem;
+    }
+    
+    .progress-fill {
+      background: linear-gradient(90deg, #10b981 0%, #3b82f6 100%);
+      height: 100%;
+      transition: width 1s linear;
+    }
+    
+    .progress-fill.warning {
+      background: linear-gradient(90deg, #f59e0b 0%, #ef4444 100%);
+    }
+    
+    button {
+      background: white;
+      color: #1e3a8a;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 0.5rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin-right: 0.5rem;
+      margin-top: 1rem;
+      transition: transform 0.2s;
+    }
+    
+    button:hover {
+      transform: translateY(-2px);
+    }
+    
+    button:active {
+      transform: translateY(0);
+    }
+    
+    .alert {
+      background: rgba(239, 68, 68, 0.2);
+      border: 1px solid #ef4444;
+      padding: 1rem;
+      border-radius: 0.5rem;
+      margin-bottom: 1rem;
+      display: none;
+    }
+    
+    .alert.show {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔐 Monitor de JWT en Tiempo Real</h1>
+    <p class="subtitle">Observa cómo cambian los tokens de Keycloak</p>
+    
+    <div id="alert" class="alert">
+      <strong>⚠️ No hay tokens</strong> - Haz login en http://localhost:5173 primero
+    </div>
+    
+    <div class="grid">
+      <!-- Access Token Card -->
+      <div class="card">
+        <h2>🎫 Access Token</h2>
+        <div class="info-row">
+          <span class="label">Estado:</span>
+          <span id="access-status" class="status status-none">Sin token</span>
+        </div>
+        <div class="info-row">
+          <span class="label">Expira en:</span>
+          <span id="access-expires" class="value">--</span>
+        </div>
+        <div class="info-row">
+          <span class="label">Últimos 8 caracteres:</span>
+          <span id="access-id" class="value">--</span>
+        </div>
+        <div class="progress-bar">
+          <div id="access-progress" class="progress-fill" style="width: 0%"></div>
+        </div>
+      </div>
+      
+      <!-- Refresh Token Card -->
+      <div class="card">
+        <h2>🔄 Refresh Token</h2>
+        <div class="info-row">
+          <span class="label">Estado:</span>
+          <span id="refresh-status" class="status status-none">Sin token</span>
+        </div>
+        <div class="info-row">
+          <span class="label">Expira en:</span>
+          <span id="refresh-expires" class="value">--</span>
+        </div>
+        <div class="info-row">
+          <span class="label">Últimos 8 caracteres:</span>
+          <span id="refresh-id" class="value">--</span>
+        </div>
+        <div class="progress-bar">
+          <div id="refresh-progress" class="progress-fill" style="width: 0%"></div>
+        </div>
+      </div>
+      
+      <!-- Usuario Card -->
+      <div class="card">
+        <h2>👤 Usuario Actual</h2>
+        <div class="info-row">
+          <span class="label">Username:</span>
+          <span id="user-username" class="value">--</span>
+        </div>
+        <div class="info-row">
+          <span class="label">Email:</span>
+          <span id="user-email" class="value">--</span>
+        </div>
+        <div class="info-row">
+          <span class="label">Roles:</span>
+          <span id="user-roles" class="value">--</span>
+        </div>
+      </div>
+    </div>
+    
+    <div class="timeline">
+      <h2>📜 Historial de Cambios</h2>
+      <div id="timeline"></div>
+    </div>
+    
+    <div style="text-align: center; margin-top: 2rem;">
+      <button onclick="forceRefresh()">🔄 Forzar Refresh Token</button>
+      <button onclick="clearTokens()">🗑️ Limpiar Tokens</button>
+      <button onclick="location.reload()">↻ Recargar Monitor</button>
+    </div>
+  </div>
+
+  <script>
+    let previousAccessToken = null;
+    let previousRefreshToken = null;
+    let timeline = [];
+    
+    function decodeJWT(token) {
+      try {
+        const parts = token.split('.');
+        if (parts.length !== 3) return null;
+        const payload = parts[1];
+        return JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+      } catch (error) {
+        return null;
+      }
+    }
+    
+    function formatTime(seconds) {
+      if (seconds < 0) return 'EXPIRADO';
+      const mins = Math.floor(seconds / 60);
+      const secs = seconds % 60;
+      return `${mins}m ${secs}s`;
+    }
+    
+    function addToTimeline(message, type = 'info') {
+      const time = new Date().toLocaleTimeString();
+      const item = document.createElement('div');
+      item.className = `timeline-item ${type}`;
+      item.innerHTML = `
+        <div>${message}</div>
+        <div class="time">${time}</div>
+      `;
+      const timelineDiv = document.getElementById('timeline');
+      timelineDiv.insertBefore(item, timelineDiv.firstChild);
+      
+      // Mantener solo los últimos 20
+      while (timelineDiv.children.length > 20) {
+        timelineDiv.removeChild(timelineDiv.lastChild);
+      }
+    }
+    
+    function updateMonitor() {
+      const accessToken = localStorage.getItem('access_token');
+      const refreshToken = localStorage.getItem('refresh_token');
+      
+      // Verificar si hay tokens
+      if (!accessToken && !refreshToken) {
+        document.getElementById('alert').classList.add('show');
+        return;
+      } else {
+        document.getElementById('alert').classList.remove('show');
+      }
+      
+      // Detectar cambios en tokens
+      if (accessToken !== previousAccessToken) {
+        if (previousAccessToken !== null) {
+          addToTimeline('🔄 Access Token actualizado (nuevo login o refresh)', 'refresh');
+        } else {
+          addToTimeline('✅ Access Token detectado', 'info');
+        }
+        previousAccessToken = accessToken;
+      }
+      
+      if (refreshToken !== previousRefreshToken) {
+        if (previousRefreshToken !== null) {
+          addToTimeline('🔄 Refresh Token actualizado (nuevo login)', 'refresh');
+        } else {
+          addToTimeline('✅ Refresh Token detectado', 'info');
+        }
+        previousRefreshToken = refreshToken;
+      }
+      
+      // Actualizar Access Token
+      if (accessToken) {
+        const decoded = decodeJWT(accessToken);
+        if (decoded) {
+          const now = Math.floor(Date.now() / 1000);
+          const remaining = decoded.exp - now;
+          const total = decoded.exp - decoded.iat;
+          const percentage = Math.max(0, (remaining / total) * 100);
+          
+          document.getElementById('access-expires').textContent = formatTime(remaining);
+          document.getElementById('access-id').textContent = '...' + accessToken.slice(-8);
+          
+          const statusEl = document.getElementById('access-status');
+          const progressEl = document.getElementById('access-progress');
+          
+          if (remaining < 0) {
+            statusEl.textContent = 'EXPIRADO';
+            statusEl.className = 'status status-expired';
+            progressEl.style.width = '0%';
+            addToTimeline('❌ Access Token expirado', 'expired');
+          } else if (remaining < 60) {
+            statusEl.textContent = 'Por expirar';
+            statusEl.className = 'status status-expiring';
+            progressEl.className = 'progress-fill warning';
+            progressEl.style.width = percentage + '%';
+          } else {
+            statusEl.textContent = 'Válido';
+            statusEl.className = 'status status-valid';
+            progressEl.className = 'progress-fill';
+            progressEl.style.width = percentage + '%';
+          }
+          
+          // Actualizar usuario
+          document.getElementById('user-username').textContent = decoded.preferred_username || '--';
+          document.getElementById('user-email').textContent = decoded.email || '--';
+          document.getElementById('user-roles').textContent = (decoded.realm_access?.roles || []).join(', ');
+        }
+      }
+      
+      // Actualizar Refresh Token
+      if (refreshToken) {
+        const decoded = decodeJWT(refreshToken);
+        if (decoded) {
+          const now = Math.floor(Date.now() / 1000);
+          const remaining = decoded.exp - now;
+          const total = decoded.exp - decoded.iat;
+          const percentage = Math.max(0, (remaining / total) * 100);
+          
+          document.getElementById('refresh-expires').textContent = formatTime(remaining);
+          document.getElementById('refresh-id').textContent = '...' + refreshToken.slice(-8);
+          
+          const statusEl = document.getElementById('refresh-status');
+          const progressEl = document.getElementById('refresh-progress');
+          
+          if (remaining < 0) {
+            statusEl.textContent = 'EXPIRADO';
+            statusEl.className = 'status status-expired';
+            progressEl.style.width = '0%';
+          } else if (remaining < 300) {
+            statusEl.textContent = 'Por expirar';
+            statusEl.className = 'status status-expiring';
+            progressEl.className = 'progress-fill warning';
+            progressEl.style.width = percentage + '%';
+          } else {
+            statusEl.textContent = 'Válido';
+            statusEl.className = 'status status-valid';
+            progressEl.className = 'progress-fill';
+            progressEl.style.width = percentage + '%';
+          }
+        }
+      }
+    }
+    
+    async function forceRefresh() {
+      const refreshToken = localStorage.getItem('refresh_token');
+      if (!refreshToken) {
+        alert('No hay refresh token disponible');
+        return;
+      }
+      
+      try {
+        const response = await fetch('http://localhost:8180/realms/datum-travels/protocol/openid-connect/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({
+            grant_type: 'refresh_token',
+            client_id: 'datum-travels-frontend',
+            refresh_token: refreshToken,
+          }),
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          localStorage.setItem('access_token', data.access_token);
+          localStorage.setItem('refresh_token', data.refresh_token);
+          addToTimeline('✅ Tokens refrescados manualmente', 'refresh');
+          updateMonitor();
+        } else {
+          addToTimeline('❌ Error al refrescar tokens', 'expired');
+        }
+      } catch (error) {
+        addToTimeline('❌ Error de red: ' + error.message, 'expired');
+      }
+    }
+    
+    function clearTokens() {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+      addToTimeline('🗑️ Tokens eliminados manualmente', 'expired');
+      previousAccessToken = null;
+      previousRefreshToken = null;
+      updateMonitor();
+    }
+    
+    // Actualizar cada segundo
+    setInterval(updateMonitor, 1000);
+    updateMonitor();
+    
+    addToTimeline('🚀 Monitor iniciado', 'info');
+  </script>
+</body>
+</html>

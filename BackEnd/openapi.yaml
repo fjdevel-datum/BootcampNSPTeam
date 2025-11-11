@@ -1,0 +1,64 @@
+---
+openapi: 3.1.0
+paths:
+  /api/eventos:
+    get:
+      responses:
+        "200":
+          description: OK
+      summary: Listar Eventos Activos
+      tags:
+      - Evento Resource
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CrearEventoDTO"
+        required: true
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+      summary: Crear Evento
+      tags:
+      - Evento Resource
+  /api/eventos/{id}:
+    get:
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+      summary: Obtener Detalle Evento
+      tags:
+      - Evento Resource
+components:
+  schemas:
+    CrearEventoDTO:
+      type: object
+      required:
+      - nombreEvento
+      - idEmpleado
+      properties:
+        nombreEvento:
+          type: string
+          pattern: \S
+        idEmpleado:
+          type: integer
+          format: int64
+  securitySchemes:
+    SecurityScheme:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Authentication
+info:
+  title: quarkus-api API
+  version: 1.0.0-SNAPSHOT
